@@ -1,0 +1,1948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Corp-Nexus Diamond — Enterprise Operations Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN TOKENS — Corp-Nexus uses a blue-steel palette.
+   --accent and --accent-rgb are the only two vars that change
+   when the white-label panel fires.
+═══════════════════════════════════════════════════════════════ */
+:root {
+  --accent:       #0EA5E9;
+  --accent-rgb:   14,165,233;
+  --accent2:      #8B5CF6;
+  --bg:           #080C14;
+  --bg2:          #0E1420;
+  --bg3:          #141C2E;
+  --glass:        rgba(255,255,255,0.03);
+  --glass-border: rgba(255,255,255,0.07);
+  --text:         #E8EEF8;
+  --text2:        #8090B0;
+  --text3:        #445070;
+  --green:        #10B981;
+  --red:          #EF4444;
+  --amber:        #F59E0B;
+  --radius:       12px;
+  --radius-sm:    8px;
+}
+
+/* ── RESETS ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+h1,h2,h3,h4,h5 { font-family: 'Space Grotesk', sans-serif; }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════════════════ */
+#header {
+  position: sticky; top: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 24px;
+  background: rgba(8,12,20,0.94);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--glass-border);
+  flex-wrap: wrap;
+}
+.logo { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; white-space: nowrap; }
+.logo span { color: var(--accent); transition: color .3s; }
+
+/* Global search */
+.search-wrap { flex: 1; max-width: 320px; min-width: 180px; position: relative; }
+.search-wrap input {
+  width: 100%; padding: 8px 12px 8px 34px;
+  background: var(--bg3); border: 1px solid var(--glass-border);
+  border-radius: 30px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color .2s;
+}
+.search-wrap input:focus { border-color: var(--accent); }
+.search-wrap .si { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: .5; pointer-events: none; }
+#search-results {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--bg2); border: 1px solid var(--glass-border);
+  border-radius: var(--radius); overflow: hidden; z-index: 300;
+  box-shadow: 0 8px 32px rgba(0,0,0,.45);
+}
+#search-results.open { display: block; }
+.search-hit { padding: 10px 14px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--glass-border); transition: background .15s; }
+.search-hit:hover { background: var(--glass); }
+.search-hit:last-child { border-bottom: none; }
+.search-hit mark { background: rgba(var(--accent-rgb),.3); color: var(--text); border-radius: 2px; }
+.search-category { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--text3); margin-top: 1px; }
+
+/* Role toggle */
+.role-toggle { display: flex; gap: 4px; background: var(--bg3); border-radius: 30px; padding: 4px; }
+.role-btn { padding: 6px 12px; border-radius: 30px; border: none; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; background: transparent; color: var(--text2); transition: all .2s; }
+.role-btn.active { background: var(--accent); color: #fff; }
+.role-btn[data-role="observer"] { color: var(--amber); }
+.role-btn[data-role="observer"].active { background: var(--amber); color: #000; font-weight: 700; }
+.wl-btn { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--glass); color: var(--text2); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all .2s; white-space: nowrap; }
+.wl-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+
+/* ═══════════════════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════════════════ */
+#app { display: flex; min-height: calc(100vh - 57px); }
+#sidebar { width: 225px; flex-shrink: 0; background: var(--bg2); border-right: 1px solid var(--glass-border); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text2); font-size: 13px; transition: all .2s; border: none; background: transparent; width: 100%; text-align: left; }
+.nav-item:hover { background: var(--glass); color: var(--text); }
+.nav-item.active { background: rgba(var(--accent-rgb),0.12); color: var(--accent); }
+.nav-section { font-size: 10px; color: var(--text3); padding: 10px 12px 3px; text-transform: uppercase; letter-spacing: .08em; }
+.addon-bar { margin-top: auto; border-top: 1px solid var(--glass-border); padding-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+.addon-item { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text2); }
+.toggle-sw { width: 30px; height: 17px; border-radius: 9px; background: var(--bg3); position: relative; cursor: pointer; transition: background .2s; border: 1px solid var(--glass-border); flex-shrink: 0; }
+.toggle-sw.on { background: var(--accent); border-color: var(--accent); }
+.toggle-sw::after { content: ''; position: absolute; width: 11px; height: 11px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: transform .2s; }
+.toggle-sw.on::after { transform: translateX(13px); }
+#main { flex: 1; padding: 24px 28px; overflow-y: auto; min-width: 0; }
+.page { display: none; }
+.page.active { display: block; animation: fadeIn .25s ease; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+/* ═══════════════════════════════════════════════════════════════
+   COMMON COMPONENTS
+═══════════════════════════════════════════════════════════════ */
+.card { background: var(--glass); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 20px; backdrop-filter: blur(8px); }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.stat-card { background: var(--bg2); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 16px 18px; }
+.stat-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; }
+.stat-val { font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; }
+.stat-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.stat-up { color: var(--green); } .stat-down { color: var(--red); }
+
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+.section-head h2 { font-size: 18px; font-weight: 600; }
+.add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; background: var(--accent); color: #fff; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; transition: opacity .2s; white-space: nowrap; }
+.add-btn:hover { opacity: .85; }
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 30px; font-size: 11px; font-weight: 500; }
+.badge-green  { background: rgba(16,185,129,.15);  color: var(--green); }
+.badge-red    { background: rgba(239,68,68,.15);   color: var(--red); }
+.badge-amber  { background: rgba(245,158,11,.15);  color: var(--amber); }
+.badge-blue   { background: rgba(var(--accent-rgb),.15); color: var(--accent); }
+.badge-purple { background: rgba(139,92,246,.15);  color: var(--accent2); }
+.badge-gray   { background: rgba(255,255,255,.06); color: var(--text2); }
+
+.icon-btn { padding: 5px 8px; border-radius: 6px; border: 1px solid var(--glass-border); background: transparent; color: var(--text2); font-size: 13px; cursor: pointer; transition: all .15s; }
+.icon-btn:hover { background: var(--glass); color: var(--text); }
+.icon-btn.del { color: var(--red); border-color: rgba(239,68,68,.25); }
+.icon-btn.del:hover { background: rgba(239,68,68,.1); }
+.filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.filter-input { background: var(--bg3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); padding: 7px 12px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; min-width: 180px; }
+.filter-input:focus { border-color: var(--accent); }
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { padding: 9px 12px; text-align: left; color: var(--text2); font-weight: 500; border-bottom: 1px solid var(--glass-border); font-family: 'Space Grotesk', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+tbody td { padding: 11px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle; }
+tbody tr:hover { background: rgba(255,255,255,0.015); }
+.progress-bar { background: var(--bg3); border-radius: 30px; height: 6px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 30px; background: var(--accent); transition: width .5s; }
+
+/* ═══════════════════════════════════════════════════════════════
+   EMPLOYEE PERFORMANCE HUB
+═══════════════════════════════════════════════════════════════ */
+.emp-hero {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb),.12), rgba(139,92,246,.07));
+  border: 1px solid rgba(var(--accent-rgb),.18);
+  border-radius: 16px; padding: 22px 26px; margin-bottom: 22px;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.emp-hero h2 { font-size: 21px; font-weight: 700; margin-bottom: 3px; }
+.emp-hero p { color: var(--text2); font-size: 13px; }
+.clock-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 20px; border-radius: 10px;
+  border: none; cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 600;
+  transition: all .2s;
+}
+.clock-btn.clock-in  { background: var(--green);  color: #fff; }
+.clock-btn.clock-out { background: var(--red);    color: #fff; }
+.clock-btn:hover { opacity: .88; }
+
+/* Clock-in timer */
+.clock-timer {
+  font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;
+  color: var(--accent); text-align: center; padding: 12px;
+}
+.clock-timer.inactive { color: var(--text3); }
+.time-log { max-height: 200px; overflow-y: auto; }
+.time-entry { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border); font-size: 12px; color: var(--text2); }
+.time-entry:last-child { border-bottom: none; }
+
+/* KPI Radar */
+.radar-card { background: var(--bg2); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 18px; }
+.radar-title { font-size: 13px; font-weight: 600; margin-bottom: 14px; }
+
+/* Personal stats strip */
+.perf-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.perf-card { background: var(--bg2); border: 1px solid var(--glass-border); border-radius: 10px; padding: 14px 16px; }
+.perf-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.perf-val   { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 700; }
+
+/* ═══════════════════════════════════════════════════════════════
+   KANBAN TASK BOARD
+═══════════════════════════════════════════════════════════════ */
+.kanban-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 6px; }
+.kanban-col { background: var(--bg2); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 16px; }
+.kanban-col-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.kanban-count { background: rgba(var(--accent-rgb),.18); color: var(--accent); border-radius: 30px; padding: 1px 8px; font-size: 11px; }
+.task-card {
+  background: var(--bg3); border: 1px solid var(--glass-border);
+  border-radius: 8px; padding: 12px; margin-bottom: 8px;
+  cursor: pointer; transition: border-color .2s, transform .15s;
+}
+.task-card:hover { border-color: rgba(var(--accent-rgb),.35); transform: translateY(-1px); }
+.task-card:last-child { margin-bottom: 0; }
+.task-title { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+.task-meta { font-size: 11px; color: var(--text2); display: flex; gap: 8px; flex-wrap: wrap; }
+.task-priority { font-size: 10px; padding: 2px 7px; border-radius: 30px; font-weight: 600; }
+.pri-high   { background: rgba(239,68,68,.18);  color: var(--red); }
+.pri-medium { background: rgba(245,158,11,.18); color: var(--amber); }
+.pri-low    { background: rgba(16,185,129,.18); color: var(--green); }
+
+/* ═══════════════════════════════════════════════════════════════
+   FUNNEL (custom HTML bars, no Chart.js needed)
+═══════════════════════════════════════════════════════════════ */
+.funnel-stage { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; }
+.funnel-label { font-size: 12px; color: var(--text2); width: 90px; text-align: right; flex-shrink: 0; }
+.funnel-bar-wrap { flex: 1; background: var(--bg3); border-radius: 4px; height: 34px; overflow: hidden; position: relative; }
+.funnel-bar { height: 100%; border-radius: 4px; display: flex; align-items: center; padding: 0 10px; font-size: 12px; font-weight: 500; color: #fff; transition: width .6s; min-width: 40px; }
+.funnel-count { font-size: 12px; color: var(--text2); width: 60px; text-align: right; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   OBSERVER SHOWCASE
+═══════════════════════════════════════════════════════════════ */
+.obs-section-title { font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; color: var(--amber); text-transform: uppercase; letter-spacing: .1em; padding: 10px 0 8px; border-bottom: 1px solid rgba(245,158,11,.2); margin-bottom: 20px; }
+.obs-divider { height: 1px; background: var(--glass-border); margin: 32px 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   CHARTS
+═══════════════════════════════════════════════════════════════ */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; }
+.chart-card { background: var(--bg2); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 18px; }
+.chart-title { font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
+canvas { max-height: 240px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SKELETON LOADERS
+═══════════════════════════════════════════════════════════════ */
+@keyframes shimmer { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
+.skeleton { background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%); background-size: 600px 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
+.skel-row  { height: 44px; margin-bottom: 8px; }
+.skel-stat { height: 90px; border-radius: var(--radius); }
+.skel-card { height: 160px; border-radius: var(--radius); }
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════════════════════ */
+#modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 500; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+#modal-overlay.open { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--glass-border); border-radius: 16px; padding: 26px; width: 500px; max-width: 96vw; max-height: 92vh; overflow-y: auto; position: relative; animation: slideUp .2s ease; }
+@keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+.modal h3 { font-size: 17px; margin-bottom: 18px; }
+.modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--text2); font-size: 18px; cursor: pointer; }
+.form-group { margin-bottom: 13px; }
+.form-group label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .05em; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px 12px; background: var(--bg3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border-color .2s; }
+.form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+.form-group select option { background: var(--bg2); }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+.btn-primary { padding: 9px 20px; border-radius: 8px; background: var(--accent); color: #fff; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; transition: opacity .2s; }
+.btn-primary:hover { opacity: .88; }
+.btn-secondary { padding: 9px 20px; border-radius: 8px; background: transparent; color: var(--text2); border: 1px solid var(--glass-border); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; }
+
+/* White-label */
+.wl-panel { background: var(--bg2); border: 1px solid var(--glass-border); border-radius: 16px; padding: 26px; max-width: 540px; }
+.wl-panel h3 { margin-bottom: 18px; font-size: 18px; }
+.color-swatch { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.swatch { width: 34px; height: 34px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color .2s, transform .15s; }
+.swatch:hover { transform: scale(1.1); }
+.swatch.active { border-color: #fff; }
+
+/* Audit */
+.audit-entry { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--glass-border); font-size: 12px; color: var(--text2); }
+.audit-time { color: var(--text3); white-space: nowrap; }
+.audit-action { color: var(--accent); font-weight: 600; }
+
+/* Toast */
+#toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+.toast { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 10px; font-size: 13px; background: var(--bg2); border: 1px solid var(--glass-border); box-shadow: 0 8px 24px rgba(0,0,0,.4); animation: slideIn .3s ease; }
+@keyframes slideIn { from { transform:translateX(60px); opacity:0; } to { transform:none; opacity:1; } }
+@keyframes fadeOut { to   { transform:translateX(60px); opacity:0; } }
+.toast.success { border-color: rgba(16,185,129,.3); }
+.toast.error   { border-color: rgba(239,68,68,.3); }
+.toast.info    { border-color: rgba(var(--accent-rgb),.3); }
+
+/* ── SIDEBAR OVERLAY (mobile) ── */
+#sidebar-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 149;
+  backdrop-filter: blur(4px);
+}
+#sidebar-overlay.active { display: block; }
+
+/* ── MOBILE TOGGLE BUTTON ── */
+#mobile-toggle {
+  display: none;
+  background: transparent; border: 1px solid var(--glass-border);
+  color: var(--text); font-size: 18px; line-height: 1;
+  padding: 5px 9px; border-radius: 8px; cursor: pointer;
+  transition: background .15s;
+}
+#mobile-toggle:hover { background: var(--glass); }
+
+@media (max-width: 900px) {
+  .charts-grid { grid-template-columns: 1fr; }
+  .kanban-board { grid-template-columns: 1fr; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE-FIRST — screens < 768 px
+══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Show hamburger */
+  #mobile-toggle { display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Header: tighten up */
+  #header { padding: 10px 14px; gap: 8px; }
+  .search-wrap { max-width: 100%; }
+  .role-toggle { display: none; }   /* hide role switcher on smallest screens */
+  .wl-btn { display: none; }
+
+  /* Sidebar: off-canvas */
+  #sidebar {
+    position: fixed; top: 0; left: 0; height: 100vh;
+    z-index: 150; transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    width: 240px; overflow-y: auto;
+    box-shadow: 4px 0 32px rgba(0,0,0,.5);
+  }
+  #sidebar.active { transform: translateX(0); }
+
+  /* Main: full width */
+  #app { flex-direction: column; }
+  #main { padding: 16px 14px; }
+
+  /* ── TABLE → CARD layout ── */
+  .tbl-wrap { overflow-x: unset; }
+
+  table, thead, tbody, tr, th, td { display: block; }
+
+  thead tr { display: none; } /* hide column headers */
+
+  tbody tr {
+    background: var(--bg2);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    padding: 12px 14px;
+  }
+  tbody tr:hover { background: var(--bg2); }
+
+  tbody td {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13px;
+  }
+  tbody td:last-child { border-bottom: none; }
+
+  /* data-label attribute used as the mobile "header" */
+  tbody td::before {
+    content: attr(data-label);
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--text3);
+    flex-shrink: 0; margin-right: 10px;
+  }
+
+  /* Misc layout fixes */
+  .charts-grid { grid-template-columns: 1fr; }
+  .kanban-board { grid-template-columns: 1fr; }
+  .card-grid { grid-template-columns: 1fr 1fr; }
+  .stat-val { font-size: 22px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DIAMOND EXPERIENCE SYSTEM
+═══════════════════════════════════════════════════════════════ */
+:root { --shadow-lg: 0 24px 70px rgba(0,0,0,.30); --shadow-sm: 0 8px 24px rgba(0,0,0,.18); }
+body { background: radial-gradient(circle at 75% -10%, rgba(var(--accent-rgb),.11), transparent 32%), var(--bg); }
+::selection { background: rgba(var(--accent-rgb),.35); color: #fff; }
+button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#header { box-shadow: 0 10px 32px rgba(0,0,0,.14); }
+.logo { letter-spacing: -.04em; }
+#main { max-width: 1600px; }
+.card, .chart-card, .radar-card, .stat-card, .perf-card, .kanban-col, .wl-panel { box-shadow: var(--shadow-sm); }
+.card:hover, .chart-card:hover, .stat-card:hover { border-color: rgba(var(--accent-rgb),.20); }
+.stat-card { position: relative; overflow: hidden; transition: transform .2s, border-color .2s, box-shadow .2s; }
+.stat-card::after { content:''; position:absolute; inset:auto -18px -28px auto; width:86px; height:86px; border-radius:50%; background:rgba(var(--accent-rgb),.08); }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(0,0,0,.22); }
+.stat-val { letter-spacing: -.04em; }
+.add-btn { box-shadow: 0 8px 18px rgba(var(--accent-rgb),.20); }
+.dashboard-hero { position:relative; overflow:hidden; display:flex; justify-content:space-between; align-items:flex-end; gap:22px; padding:26px 28px; margin-bottom:18px; border:1px solid rgba(var(--accent-rgb),.22); border-radius:18px; background: linear-gradient(120deg, rgba(var(--accent-rgb),.16), rgba(139,92,246,.10) 55%, rgba(255,255,255,.025)); box-shadow: var(--shadow-lg); }
+.dashboard-hero::before { content:''; position:absolute; width:280px; height:280px; right:-70px; top:-150px; border-radius:50%; background:rgba(var(--accent-rgb),.13); filter:blur(4px); }
+.dashboard-hero > * { position:relative; z-index:1; }
+.eyebrow { color:var(--accent); font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; margin-bottom:8px; }
+.dashboard-hero h2 { font-size:clamp(24px,3vw,34px); letter-spacing:-.05em; line-height:1.05; }
+.dashboard-hero p { color:var(--text2); font-size:13px; margin-top:8px; max-width:540px; }
+.hero-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:16px; }
+.live-pill { display:inline-flex; align-items:center; gap:7px; padding:6px 10px; border:1px solid rgba(16,185,129,.22); border-radius:30px; color:var(--green); background:rgba(16,185,129,.10); font-size:11px; font-weight:600; }
+.live-dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 4px rgba(16,185,129,.12); animation:pulse 2s infinite; }
+@keyframes pulse { 50% { box-shadow:0 0 0 7px rgba(16,185,129,0); } }
+.hero-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.hero-actions .btn-secondary { background:rgba(255,255,255,.05); color:var(--text); }
+.insight-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:22px; }
+.insight-card { display:flex; align-items:flex-start; gap:11px; padding:13px 15px; border:1px solid var(--glass-border); border-radius:12px; background:rgba(255,255,255,.025); }
+.insight-icon { width:30px; height:30px; display:grid; place-items:center; flex:0 0 auto; border-radius:9px; background:rgba(var(--accent-rgb),.14); color:var(--accent); }
+.insight-card strong { display:block; font-size:12px; margin-bottom:3px; }
+.insight-card span { display:block; color:var(--text2); font-size:11px; line-height:1.35; }
+.page.active { animation: pageIn .28s ease both; }
+@keyframes pageIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+.nav-item { position:relative; }
+.nav-item.active::before { content:''; position:absolute; left:-10px; top:8px; bottom:8px; width:3px; border-radius:0 3px 3px 0; background:var(--accent); }
+.empty-state { text-align:center; padding:28px 16px !important; color:var(--text3); }
+.empty-state strong { display:block; color:var(--text2); margin-bottom:4px; }
+@media (max-width: 768px) {
+  .dashboard-hero { align-items:flex-start; flex-direction:column; padding:22px 20px; }
+  .hero-actions { width:100%; }
+  .hero-actions button { flex:1; }
+  .insight-row { grid-template-columns:1fr; }
+  .nav-item.active::before { left:0; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ROLE WORKSPACES + AUTOMATION CENTER
+═══════════════════════════════════════════════════════════════ */
+.role-workspace { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr); gap:16px; margin-bottom:20px; }
+.workspace-card, .automation-card { background:var(--bg2); border:1px solid var(--glass-border); border-radius:14px; padding:18px; box-shadow:var(--shadow-sm); }
+.workspace-card h3, .automation-card h3 { font-size:14px; margin-bottom:4px; }
+.workspace-subtitle { color:var(--text2); font-size:12px; margin-bottom:15px; }
+.workspace-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.workspace-stat { padding:12px; border-radius:10px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.05); }
+.workspace-stat .label { color:var(--text2); font-size:10px; text-transform:uppercase; letter-spacing:.06em; }
+.workspace-stat .value { display:block; margin-top:5px; font:700 23px 'Space Grotesk',sans-serif; letter-spacing:-.04em; }
+.queue-list { display:flex; flex-direction:column; gap:8px; }
+.queue-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--glass-border); font-size:12px; }
+.queue-item:last-child { border-bottom:0; padding-bottom:0; }
+.queue-icon { width:27px; height:27px; display:grid; place-items:center; border-radius:8px; background:rgba(var(--accent-rgb),.12); color:var(--accent); flex:0 0 auto; }
+.queue-copy { min-width:0; flex:1; }
+.queue-copy strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.queue-copy span { display:block; margin-top:2px; color:var(--text2); font-size:11px; }
+.queue-action { border:0; background:transparent; color:var(--accent); cursor:pointer; font-size:11px; white-space:nowrap; }
+.automation-card { background:linear-gradient(145deg,rgba(var(--accent-rgb),.09),rgba(255,255,255,.025)); }
+.automation-header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:12px; }
+.auto-badge { font-size:10px; padding:4px 8px; border-radius:30px; color:var(--green); background:rgba(16,185,129,.12); }
+.automation-rule { display:flex; gap:9px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--glass-border); }
+.automation-rule:last-child { border-bottom:0; }
+.automation-rule .rule-icon { color:var(--amber); font-size:14px; line-height:1.2; }
+.automation-rule strong { display:block; font-size:11px; }
+.automation-rule span { display:block; color:var(--text2); font-size:11px; margin-top:2px; line-height:1.35; }
+.automation-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; padding-top:12px; margin-top:4px; border-top:1px solid var(--glass-border); }
+.automation-footer small { color:var(--text3); font-size:10px; }
+.auto-toggle { display:inline-flex; align-items:center; gap:6px; color:var(--text2); font-size:11px; cursor:pointer; }
+.auto-toggle input { accent-color:var(--accent); }
+.role-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 9px; color:var(--accent); background:rgba(var(--accent-rgb),.11); border-radius:30px; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+.quick-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:15px; }
+.quick-row button { font-size:11px; padding:7px 10px; }
+@media (max-width:900px) { .role-workspace { grid-template-columns:1fr; } }
+@media (max-width:520px) { .workspace-stats { grid-template-columns:1fr 1fr; } }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   PRODUCT TEMPLATE LAYER
+═══════════════════════════════════════════════════════════════ */
+.header-action { position:relative; display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:34px; border:1px solid var(--glass-border); border-radius:9px; background:var(--glass); color:var(--text2); cursor:pointer; font-size:15px; }
+.header-action:hover { color:var(--text); background:rgba(255,255,255,.07); }
+.notify-count { position:absolute; top:-5px; right:-5px; min-width:16px; height:16px; padding:0 4px; border-radius:20px; display:grid; place-items:center; color:#fff; background:var(--red); font-size:9px; font-weight:700; border:2px solid var(--bg); }
+.template-tools { display:flex; gap:8px; align-items:center; }
+#notification-panel, #command-panel, #onboarding-overlay { display:none; position:fixed; inset:0; z-index:600; background:rgba(0,0,0,.72); backdrop-filter:blur(8px); align-items:center; justify-content:center; }
+#notification-panel.open, #command-panel.open, #onboarding-overlay.open { display:flex; }
+.overlay-card { width:540px; max-width:94vw; max-height:88vh; overflow:auto; padding:24px; border:1px solid var(--glass-border); border-radius:18px; background:var(--bg2); box-shadow:0 24px 80px rgba(0,0,0,.45); animation:slideUp .22s ease; }
+.overlay-card h2 { font-size:20px; margin-bottom:6px; }
+.overlay-card .overlay-sub { color:var(--text2); font-size:12px; line-height:1.5; margin-bottom:18px; }
+.overlay-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.overlay-close { border:0; background:transparent; color:var(--text2); font-size:18px; cursor:pointer; }
+.preset-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.preset-card { padding:13px; border:1px solid var(--glass-border); border-radius:11px; background:rgba(255,255,255,.025); cursor:pointer; text-align:left; transition:.18s; }
+.preset-card:hover, .preset-card.active { border-color:var(--accent); background:rgba(var(--accent-rgb),.09); transform:translateY(-2px); }
+.preset-card strong { display:block; font-size:12px; margin-bottom:4px; }
+.preset-card span { display:block; color:var(--text2); font-size:10px; line-height:1.35; }
+.onboarding-progress { display:flex; gap:5px; margin:16px 0 20px; }
+.onboarding-progress span { height:4px; flex:1; border-radius:4px; background:var(--bg3); }
+.onboarding-progress span.active { background:var(--accent); }
+.onboarding-step { display:none; }
+.onboarding-step.active { display:block; }
+.onboarding-footer { display:flex; justify-content:space-between; align-items:center; margin-top:22px; padding-top:16px; border-top:1px solid var(--glass-border); }
+.onboarding-footer small { color:var(--text3); font-size:11px; }
+.builder-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; }
+.builder-option { padding:14px; border:1px solid var(--glass-border); border-radius:11px; background:rgba(255,255,255,.025); }
+.builder-option label { display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--text2); font-size:12px; }
+.builder-option input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; }
+.builder-option select, .builder-option input[type=text] { width:100%; margin-top:9px; padding:8px 10px; color:var(--text); background:var(--bg3); border:1px solid var(--glass-border); border-radius:7px; font:12px 'DM Sans',sans-serif; }
+.notification-item { display:flex; gap:10px; padding:12px 0; border-bottom:1px solid var(--glass-border); }
+.notification-item:last-child { border-bottom:0; }
+.notification-dot { width:8px; height:8px; margin-top:5px; flex:0 0 auto; border-radius:50%; background:var(--amber); }
+.notification-item strong { display:block; font-size:12px; }
+.notification-item span { display:block; color:var(--text2); font-size:11px; margin-top:3px; }
+.command-search { width:100%; padding:12px 14px; color:var(--text); background:var(--bg3); border:1px solid var(--glass-border); border-radius:9px; font:14px 'DM Sans',sans-serif; outline:none; }
+.command-list { margin-top:10px; display:flex; flex-direction:column; gap:4px; }
+.command-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 12px; border-radius:8px; color:var(--text); cursor:pointer; font-size:12px; }
+.command-item:hover { background:rgba(var(--accent-rgb),.12); }
+.command-item span { color:var(--text3); font-size:10px; }
+body.compact-mode .card, body.compact-mode .chart-card, body.compact-mode .workspace-card, body.compact-mode .automation-card { padding:13px; }
+body.light-mode { --bg:#F3F6FB; --bg2:#FFFFFF; --bg3:#E8EEF7; --glass:rgba(15,23,42,.035); --glass-border:rgba(15,23,42,.12); --text:#122033; --text2:#5D6B82; --text3:#8793A7; }
+body.light-mode #header { background:rgba(243,246,251,.94); }
+@media (max-width:600px) { .preset-grid, .builder-grid { grid-template-columns:1fr; } .template-tools .header-action { display:none; } }
+@media (max-width:768px) {
+  #header { flex-wrap:wrap; align-content:center; }
+  #header > div:nth-of-type(2) { order:3; flex:1 0 100%; min-width:0; }
+  #header .search-wrap { max-width:none; }
+  #header .role-toggle { order:4; flex:1 0 100%; display:none; min-width:0; overflow-x:auto; padding-bottom:2px; }
+  #header.role-admin .role-toggle, #header.role-observer .role-toggle { display:flex; }
+  #header .role-toggle .role-btn { flex:0 0 auto; white-space:nowrap; }
+  #header .template-tools { order:2; margin-left:auto; max-width:calc(100vw - 120px); overflow-x:auto; flex-wrap:nowrap; padding-bottom:2px; }
+  #header .template-tools .header-action { display:inline-flex; flex:0 0 auto; }
+  #header .template-tools .wl-btn { display:inline-flex; flex:0 0 auto; white-space:nowrap; padding:8px 10px; font-size:10px; }
+  #header.role-staff .template-tools .wl-btn, #header.role-employee .template-tools .wl-btn { display:none; }
+  #header .template-tools::-webkit-scrollbar, #header .role-toggle::-webkit-scrollbar { height:3px; }
+}
+/* ═══════════════════════════════════════════════════════════════
+   MARKETPLACE / DATA TOOLING LAYER
+═══════════════════════════════════════════════════════════════ */
+#landing-overlay { display:none; position:fixed; inset:0; z-index:700; align-items:center; justify-content:center; background:radial-gradient(circle at 80% 10%,rgba(var(--accent-rgb),.18),transparent 35%),rgba(5,8,15,.96); }
+#landing-overlay.open { display:flex; }
+.landing-card { width:880px; max-width:94vw; padding:42px; border:1px solid rgba(var(--accent-rgb),.28); border-radius:24px; background:linear-gradient(145deg,rgba(var(--accent-rgb),.12),rgba(255,255,255,.035)); box-shadow:0 30px 100px rgba(0,0,0,.5); }
+.landing-card h1 { max-width:650px; font-size:clamp(32px,6vw,62px); letter-spacing:-.065em; line-height:.98; }
+.landing-card p { max-width:620px; margin-top:16px; color:var(--text2); font-size:15px; line-height:1.6; }
+.landing-points { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:28px 0; }
+.landing-point { padding:14px; border:1px solid var(--glass-border); border-radius:12px; background:rgba(255,255,255,.035); }
+.landing-point b { display:block; font-size:12px; margin-bottom:5px; }.landing-point span { color:var(--text2); font-size:11px; line-height:1.4; }
+.data-tools { display:flex; gap:7px; flex-wrap:wrap; align-items:center; }.tool-btn { padding:7px 10px; border:1px solid var(--glass-border); border-radius:8px; background:var(--glass); color:var(--text2); cursor:pointer; font:11px 'DM Sans',sans-serif; }.tool-btn:hover{color:var(--text);background:rgba(255,255,255,.07)}
+.view-select { padding:7px 9px; border:1px solid var(--glass-border); border-radius:8px; background:var(--bg3); color:var(--text2); font:11px 'DM Sans',sans-serif; }
+.sortable { cursor:pointer; user-select:none; }.sortable:hover{color:var(--accent)}
+.permission-matrix { width:100%; border-collapse:collapse; margin-top:14px; font-size:11px; }.permission-matrix th,.permission-matrix td{padding:10px 8px;border-bottom:1px solid var(--glass-border);text-align:center}.permission-matrix th:first-child,.permission-matrix td:first-child{text-align:left;color:var(--text2)}.permission-matrix input{accent-color:var(--accent)}
+@media(max-width:650px){.landing-card{padding:28px 22px}.landing-points{grid-template-columns:1fr}.data-tools{width:100%}.data-tools .view-select{flex:1}}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   PRODUCTION READINESS LAYER
+═══════════════════════════════════════════════════════════════ */
+#app-dialog, #help-panel { display:none; position:fixed; inset:0; z-index:800; align-items:center; justify-content:center; background:rgba(0,0,0,.74); backdrop-filter:blur(8px); }
+#app-dialog.open, #help-panel.open { display:flex; }
+.dialog-card, .help-card { width:500px; max-width:94vw; max-height:88vh; overflow:auto; padding:24px; border:1px solid var(--glass-border); border-radius:16px; background:var(--bg2); box-shadow:0 24px 80px rgba(0,0,0,.48); animation:slideUp .2s ease; }
+.dialog-card h2, .help-card h2 { font-size:19px; margin-bottom:6px; }.dialog-copy,.help-copy{color:var(--text2);font-size:12px;line-height:1.55;margin-bottom:16px}.dialog-input{width:100%;padding:10px 12px;color:var(--text);background:var(--bg3);border:1px solid var(--glass-border);border-radius:8px;font:13px 'DM Sans',sans-serif;outline:none}.dialog-input:focus{border-color:var(--accent)}
+.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}.dialog-error{color:var(--red);font-size:11px;margin-top:7px;display:none}.dialog-error.show{display:block}
+.table-controls{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--glass-border);color:var(--text3);font-size:11px}.page-controls{display:flex;gap:5px}.page-controls button{min-width:26px;padding:4px 7px;border:1px solid var(--glass-border);border-radius:6px;background:transparent;color:var(--text2);cursor:pointer;font-size:11px}.page-controls button.active,.page-controls button:hover{background:rgba(var(--accent-rgb),.14);border-color:var(--accent);color:var(--accent)}
+.help-section{padding:13px 0;border-bottom:1px solid var(--glass-border)}.help-section:last-child{border-bottom:0}.help-section h3{font-size:13px;margin-bottom:5px}.help-section p,.help-section li{color:var(--text2);font-size:11px;line-height:1.55}.help-section ul{padding-left:18px}.version-badge{display:inline-block;margin-bottom:14px;padding:5px 9px;border-radius:30px;color:var(--accent);background:rgba(var(--accent-rgb),.12);font-size:10px;font-weight:700;letter-spacing:.06em}
+.csv-preview{max-height:180px;overflow:auto;margin-top:12px;border:1px solid var(--glass-border);border-radius:8px}.csv-preview table{font-size:10px}.csv-preview td,.csv-preview th{padding:6px 8px;white-space:nowrap;border-bottom:1px solid var(--glass-border)}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   DISTINCT ROLE DASHBOARDS
+═══════════════════════════════════════════════════════════════ */
+#page-dashboard.employee-mode #dashboard-insights,
+#page-dashboard.employee-mode #dash-stats,
+#page-dashboard.employee-mode > .charts-grid { display:none; }
+#page-dashboard.employee-mode .dashboard-hero { background:linear-gradient(120deg,rgba(16,185,129,.15),rgba(var(--accent-rgb),.08) 60%,rgba(255,255,255,.025)); border-color:rgba(16,185,129,.22); }
+.employee-focus { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(260px,.7fr); gap:16px; margin-bottom:20px; }
+.focus-card { background:var(--bg2); border:1px solid var(--glass-border); border-radius:14px; padding:18px; box-shadow:var(--shadow-sm); }
+.focus-card h3 { font-size:14px; margin-bottom:4px; }.focus-sub { color:var(--text2); font-size:12px; margin-bottom:14px; }
+.focus-task { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--glass-border); }.focus-task:last-child{border-bottom:0}.focus-check{width:27px;height:27px;display:grid;place-items:center;border-radius:8px;background:rgba(var(--accent-rgb),.12);color:var(--accent);font-size:12px}.focus-task strong{display:block;font-size:12px}.focus-task span{display:block;color:var(--text2);font-size:11px;margin-top:3px}.focus-task .task-priority{margin-left:auto;flex-shrink:0}
+.shift-card { display:flex; flex-direction:column; justify-content:space-between; min-height:190px; background:linear-gradient(145deg,rgba(16,185,129,.11),rgba(255,255,255,.025)); }.shift-status{display:flex;align-items:center;gap:7px;color:var(--green);font-size:11px;font-weight:600}.shift-clock{font:700 31px 'Space Grotesk',sans-serif;letter-spacing:-.05em;margin:18px 0 4px}.shift-helper{color:var(--text2);font-size:11px}.shift-btn{width:100%;margin-top:14px;padding:9px;border:1px solid rgba(16,185,129,.25);border-radius:8px;background:rgba(16,185,129,.12);color:var(--green);cursor:pointer;font:600 12px 'DM Sans',sans-serif}
+@media(max-width:900px){.employee-focus{grid-template-columns:1fr}}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ULTIMATE TEMPLATE PRESENTATION LAYER
+═══════════════════════════════════════════════════════════════ */
+.preset-launcher{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px}.preset-launcher button{padding:12px;text-align:left;border:1px solid var(--glass-border);border-radius:10px;background:var(--glass);color:var(--text);cursor:pointer}.preset-launcher button:hover{border-color:var(--accent);background:rgba(var(--accent-rgb),.1)}.preset-launcher strong{display:block;font-size:11px}.preset-launcher span{display:block;margin-top:4px;color:var(--text2);font-size:10px;line-height:1.35}.demo-mode-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.demo-mode-row button{flex:1;min-width:140px}.presentation-mode .sidebar,.presentation-mode .topbar .header-actions,.presentation-mode #mobile-toggle{display:none!important}.presentation-mode .main{margin-left:0!important}.presentation-mode .app-shell{max-width:1500px;margin:auto}.presentation-mode .dashboard-hero{min-height:215px}.presentation-badge{display:none;position:fixed;bottom:15px;left:50%;transform:translateX(-50%);z-index:200;color:var(--accent);background:var(--bg2);border:1px solid var(--glass-border);border-radius:30px;padding:7px 12px;font-size:10px;box-shadow:var(--shadow-sm)}.presentation-mode .presentation-badge{display:block}@media(max-width:680px){.preset-launcher{grid-template-columns:1fr}}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPREHENSIVE PRODUCT DIFFERENTIATORS
+═══════════════════════════════════════════════════════════════ */
+.generator-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}.generator-grid label{display:flex;flex-direction:column;gap:6px;color:var(--text2);font-size:11px}.generator-grid select{padding:9px;border:1px solid var(--glass-border);border-radius:8px;background:var(--bg3);color:var(--text);font:12px 'DM Sans',sans-serif}.generator-result{margin-top:12px;padding:11px;border:1px solid rgba(var(--accent-rgb),.25);border-radius:9px;background:rgba(var(--accent-rgb),.08);color:var(--text2);font-size:11px;line-height:1.45}.automation-builder{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.automation-builder select{padding:9px;border:1px solid var(--glass-border);border-radius:8px;background:var(--bg3);color:var(--text);font:11px 'DM Sans',sans-serif}.rule-list{display:grid;gap:7px;margin-top:12px}.rule-row{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--glass-border);border-radius:9px;background:var(--glass);font-size:11px}.rule-row span{color:var(--text2)}.rule-row button{margin-left:auto}.a11y-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.a11y-row button{flex:1;min-width:130px}.high-contrast{--text:#fff;--text2:#f3f4f6;--text3:#d1d5db;--glass-border:rgba(255,255,255,.38)}.reduced-motion *, .reduced-motion *::before, .reduced-motion *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}.kit-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}.kit-sample{padding:15px;border:1px solid var(--glass-border);border-radius:11px;background:var(--glass)}.kit-sample h4{font-size:11px;margin-bottom:9px}.kit-sample small{color:var(--text3);font-size:10px}.state-sample{padding:13px;border-radius:9px;background:var(--bg3);color:var(--text2);font-size:11px}.state-sample.error{color:var(--red);border:1px dashed rgba(239,68,68,.35)}.state-sample.success{color:var(--green);border:1px dashed rgba(16,185,129,.35)}@media(max-width:680px){.generator-grid,.automation-builder,.kit-grid{grid-template-columns:1fr}}
+#command-panel.open,#notification-panel.open,#help-panel.open,#library-panel.open{pointer-events:none}#command-panel.open>.overlay-card,#notification-panel.open>.overlay-card,#help-panel.open>.help-card,#library-panel.open>.help-card{pointer-events:auto}
+
+
+.auth-overlay{position:fixed;inset:0;z-index:120;background:rgba(3,6,12,.82);backdrop-filter:blur(14px);display:none;align-items:center;justify-content:center;padding:20px}.auth-overlay.open{display:flex}.auth-card{width:min(430px,100%);padding:28px;border:1px solid var(--glass-border);border-radius:18px;background:linear-gradient(145deg,rgba(17,25,37,.98),rgba(9,13,21,.98));box-shadow:0 30px 90px rgba(0,0,0,.45)}.auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}.auth-mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--accent);color:#06101b;font-weight:900}.auth-card h2{font-family:'Space Grotesk',sans-serif;font-size:24px;margin-bottom:7px}.auth-copy{color:var(--text2);font-size:12px;line-height:1.5;margin-bottom:18px}.auth-tabs{display:grid;grid-template-columns:1fr 1fr;padding:4px;background:var(--bg3);border-radius:10px;margin-bottom:18px}.auth-tab{border:0;background:transparent;color:var(--text3);padding:9px;border-radius:7px;font:600 11px 'DM Sans',sans-serif;cursor:pointer}.auth-tab.active{background:var(--glass);color:var(--text);box-shadow:0 3px 10px rgba(0,0,0,.18)}.auth-form{display:grid;gap:11px}.auth-form label{display:grid;gap:6px;color:var(--text2);font-size:11px}.auth-form input{width:100%;padding:11px 12px;border:1px solid var(--glass-border);border-radius:9px;background:var(--bg3);color:var(--text);font:12px 'DM Sans',sans-serif;outline:none}.auth-form input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.14)}.auth-password{position:relative}.auth-password input{padding-right:66px}.auth-password button{position:absolute;right:7px;top:6px;border:0;background:transparent;color:var(--text3);font-size:10px;cursor:pointer;padding:6px}.auth-row{display:flex;justify-content:space-between;align-items:center;color:var(--text3);font-size:10px}.auth-row label{display:flex;align-items:center;gap:6px;color:var(--text3);font-size:10px}.auth-row input{accent-color:var(--accent)}.auth-link{border:0;background:transparent;color:var(--accent);cursor:pointer;font:10px 'DM Sans',sans-serif}.auth-demo{margin-top:17px;padding-top:15px;border-top:1px solid var(--glass-border)}.auth-demo-title{color:var(--text3);font-size:10px;margin-bottom:9px}.auth-demo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.auth-demo-grid button{border:1px solid var(--glass-border);border-radius:8px;background:var(--glass);color:var(--text2);padding:8px 4px;font:10px 'DM Sans',sans-serif;cursor:pointer}.auth-demo-grid button:hover{border-color:var(--accent);color:var(--text)}.auth-note{color:var(--text3);font-size:10px;line-height:1.45;text-align:center;margin-top:16px}.auth-error{display:none;color:var(--red);font-size:10px;line-height:1.4}.auth-error.show{display:block}.auth-close{float:right;border:0;background:transparent;color:var(--text3);font-size:18px;cursor:pointer}.landing-auth-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══════════════════════════════════════════════ -->
+<div id="header">
+  <button id="mobile-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+  <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+    <div class="logo" id="brand-logo">Corp<span>·</span>Nexus</div>
+    <span id="brand-tag" style="font-size:11px;color:var(--text3);background:var(--bg3);padding:2px 9px;border-radius:30px">Diamond Edition</span>
+  </div>
+
+  <div class="search-wrap">
+    <span class="si">🔍</span>
+    <input type="text" id="global-search" placeholder="Search projects, leads, employees…" oninput="globalSearch(this.value)" onblur="setTimeout(()=>closeSearch(),200)"/>
+    <div id="search-results"></div>
+  </div>
+
+  <div class="role-toggle">
+    <button class="role-btn active" data-role="admin"    onclick="setRole('admin')">Admin</button>
+    <button class="role-btn"        data-role="staff"    onclick="setRole('staff')">Staff</button>
+    <button class="role-btn"        data-role="employee" onclick="setRole('employee')">Employee</button>
+    <button class="role-btn"        data-role="observer" onclick="setRole('observer')">👁 Observer</button>
+  </div>
+  <div class="template-tools">
+    <button class="header-action" title="Account and authentication" onclick="openAuth('signin')">◎</button>
+    <button class="header-action" title="Command palette (Ctrl/Cmd + K)" onclick="openCommandPalette()">⌘</button>
+    <button class="header-action" title="Notifications" onclick="openNotifications()">♢<span class="notify-count" id="notify-count">0</span></button>
+    <button class="header-action" title="Help and changelog" onclick="openHelp()">?</button>
+    <button class="wl-btn" onclick="showPage('wl')">⚙ Template Builder</button>
+  </div>
+</div>
+
+<!-- ═══ APP SHELL ════════════════════════════════════════════ -->
+<div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('active');this.classList.remove('active');document.getElementById('mobile-toggle').setAttribute('aria-expanded','false');"></div>
+<div id="app">
+  <nav id="sidebar">
+    <div class="nav-section">Overview</div>
+    <button class="nav-item active" data-tab="dashboard" onclick="showPage('dashboard')">▦ Dashboard</button>
+
+    <div class="nav-section">Operations</div>
+    <button class="nav-item" data-tab="projects"   onclick="showPage('projects')">◫ Projects</button>
+    <button class="nav-item" data-tab="employees"  onclick="showPage('employees')">◉ Employees</button>
+    <button class="nav-item" data-tab="sales"      onclick="showPage('sales')">↗ Sales / CRM</button>
+
+    <div class="nav-section">My Workspace</div>
+    <button class="nav-item" data-tab="my-hub"    onclick="showPage('my-hub')">◎ My Hub</button>
+    <button class="nav-item" data-tab="my-tasks"  onclick="showPage('my-tasks')">✓ My Tasks</button>
+
+    <div class="nav-section">Insights</div>
+    <button class="nav-item" data-tab="analytics" onclick="showPage('analytics')">⌁ Analytics</button>
+    <button class="nav-item" data-tab="audit"     onclick="showPage('audit')">≡ Audit Log</button>
+    <button class="nav-item" data-tab="observer" onclick="showPage('observer')">◌ Observer Preview</button>
+
+    <div class="addon-bar">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.08em">Add-ins</div>
+      <div class="addon-item"><span>PDF Reports</span><div class="toggle-sw on" onclick="toggleAddon('pdf',this)"></div></div>
+      <div class="addon-item"><span>Predictive AI</span><div class="toggle-sw" onclick="toggleAddon('pred',this)"></div></div>
+      <div class="addon-item"><span>Audit Logs</span><div class="toggle-sw on" onclick="toggleAddon('audit',this)"></div></div>
+    </div>
+  </nav>
+
+  <main id="main">
+
+    <!-- ── ADMIN DASHBOARD ── -->
+    <div class="page active" id="page-dashboard">
+      <section class="dashboard-hero" aria-labelledby="dash-greeting">
+        <div>
+          <div class="eyebrow" id="dash-eyebrow">Executive command center</div>
+          <h2 id="dash-greeting">Operations Overview</h2>
+          <p id="dash-description">Live visibility across delivery, workforce health, and revenue momentum. Make the next decision with confidence.</p>
+          <div class="hero-meta"><span class="live-pill"><span class="live-dot"></span>Systems operational</span><span style="font-size:11px;color:var(--text3)" id="dash-updated">Updated just now</span></div>
+        </div>
+        <div class="hero-actions">
+          <button class="btn-secondary" onclick="showPage('analytics')">View analytics</button>
+          <button class="add-btn" onclick="openModal('project')">+ New project</button>
+        </div>
+      </section>
+      <div class="insight-row" id="dashboard-insights" aria-label="Operational insights"></div>
+      <div id="role-workspace" aria-live="polite"></div>
+      <div class="card-grid" id="dash-stats"></div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-title">Departmental Efficiency (Avg KPI)</div><canvas id="chart-dept"></canvas></div>
+        <div class="chart-card"><div class="chart-title">Monthly Revenue Pipeline</div><div id="funnel-chart" style="padding:4px 0"></div></div>
+      </div>
+    </div>
+
+    <!-- ── PROJECTS ── -->
+    <div class="page" id="page-projects">
+      <div class="section-head">
+        <h2>Projects</h2>
+        <div class="filter-bar">
+          <input class="filter-input" placeholder="Search projects…" oninput="filterTable('projects',this.value)"/>
+          <div class="data-tools"><select class="view-select" id="projects-view" onchange="applySavedView('projects',this.value)"><option value="">Saved views</option></select><button class="tool-btn" onclick="saveCurrentView('projects')">＋ View</button><button class="tool-btn" onclick="exportCSV('projects')">↓ CSV</button><button class="tool-btn" onclick="importCSV('projects')">↑ Import</button></div>
+          <button class="add-btn" onclick="openModal('project')">+ Add Project</button>
+        </div>
+      </div>
+      <div id="projects-loading"></div>
+      <div class="card" id="projects-table" style="display:none">
+        <div class="table-controls" id="projects-table-controls"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Project</th><th>Client</th><th>Team</th><th>Budget</th><th>Deadline</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="projects-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EMPLOYEES ── -->
+    <div class="page" id="page-employees">
+      <div class="section-head">
+        <h2>Employees</h2>
+        <div class="filter-bar">
+          <input class="filter-input" placeholder="Search employees…" oninput="filterTable('employees',this.value)"/>
+          <div class="data-tools"><select class="view-select" id="employees-view" onchange="applySavedView('employees',this.value)"><option value="">Saved views</option></select><button class="tool-btn" onclick="saveCurrentView('employees')">＋ View</button><button class="tool-btn" onclick="exportCSV('employees')">↓ CSV</button><button class="tool-btn" onclick="importCSV('employees')">↑ Import</button></div>
+          <button class="add-btn" onclick="openModal('employee')">+ Add Employee</button>
+        </div>
+      </div>
+      <div id="employees-loading"></div>
+      <div class="card" id="employees-table" style="display:none">
+        <div class="table-controls" id="employees-table-controls"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Department</th><th>Role</th><th>KPI Score</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="employees-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SALES / CRM ── -->
+    <div class="page" id="page-sales">
+      <div class="section-head">
+        <h2>Sales Pipeline</h2>
+        <div class="filter-bar">
+          <input class="filter-input" placeholder="Search leads…" oninput="filterTable('leads',this.value)"/>
+          <div class="data-tools"><select class="view-select" id="leads-view" onchange="applySavedView('leads',this.value)"><option value="">Saved views</option></select><button class="tool-btn" onclick="saveCurrentView('leads')">＋ View</button><button class="tool-btn" onclick="exportCSV('leads')">↓ CSV</button><button class="tool-btn" onclick="importCSV('leads')">↑ Import</button></div>
+          <button class="add-btn" onclick="openModal('lead')">+ Add Lead</button>
+        </div>
+      </div>
+      <div id="sales-loading"></div>
+      <div class="card" id="sales-table" style="display:none">
+        <div class="table-controls" id="sales-table-controls"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Lead</th><th>Deal Value</th><th>Stage</th><th>Probability</th><th>Weighted</th><th>Temp</th><th>Actions</th></tr></thead>
+            <tbody id="leads-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EMPLOYEE: MY HUB (Personal Performance Dashboard) ── -->
+    <div class="page" id="page-my-hub">
+      <!-- Hero with clock-in -->
+      <div class="emp-hero">
+        <div>
+          <h2>My Performance Hub</h2>
+          <p id="hub-sub">Logged in as Vikram Sharma · Engineering</p>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+          <div class="clock-timer inactive" id="clock-display">—:——:——</div>
+          <button class="clock-btn clock-in" id="clock-btn" onclick="toggleClock()">▶ Clock In</button>
+        </div>
+      </div>
+
+      <!-- Personal KPI strip -->
+      <div class="perf-strip" id="perf-strip"></div>
+
+      <!-- Two-col: radar + time log -->
+      <div class="charts-grid">
+        <div class="radar-card">
+          <div class="radar-title">Skills Radar</div>
+          <canvas id="chart-radar" style="max-height:260px"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title" style="margin-bottom:10px">Today's Time Log</div>
+          <div class="time-log" id="time-log">
+            <div style="color:var(--text3);font-size:12px;padding:12px 0">No clock-in events yet. Press Clock In to start tracking.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EMPLOYEE: MY TASKS (Kanban) ── -->
+    <div class="page" id="page-my-tasks">
+      <div class="section-head">
+        <h2>My Tasks</h2>
+        <button class="add-btn" onclick="openModal('task')">+ Add Task</button>
+      </div>
+      <div class="kanban-board" id="kanban-board"></div>
+    </div>
+
+    <!-- ── ANALYTICS ── -->
+    <div class="page" id="page-analytics">
+      <h2 style="margin-bottom:20px">Analytics Deep Dive</h2>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-title">Departmental Efficiency</div><canvas id="chart-dept2"></canvas></div>
+        <div class="chart-card"><div class="chart-title">Pipeline by Stage</div><canvas id="chart-pipeline"></canvas></div>
+      </div>
+      <div class="chart-card" style="margin-top:18px">
+        <div class="chart-title">Project Budget by Status</div>
+        <canvas id="chart-budget" style="max-height:160px"></canvas>
+      </div>
+    </div>
+
+    <!-- ── AUDIT LOG ── -->
+    <div class="page" id="page-audit">
+      <h2 style="margin-bottom:18px">Audit Log</h2>
+      <div class="card" id="audit-container"></div>
+    </div>
+
+    <!-- ── WHITE-LABEL ── -->
+    <div class="page" id="page-wl">
+      <h2 style="margin-bottom:20px">White-label Configuration</h2>
+      <div class="wl-panel">
+        <h3>Brand Settings</h3>
+        <div class="form-group"><label>Platform Name</label><input type="text" id="wl-name" value="Corp·Nexus" oninput="applyWL()"/></div>
+        <div class="form-group"><label>Tagline</label><input type="text" id="wl-tag" value="Diamond Edition" oninput="applyWL()"/></div>
+        <div class="form-group">
+          <label>Accent Color — updates all badges, charts & buttons globally</label>
+          <div class="color-swatch">
+            <div class="swatch active" style="background:#0EA5E9" onclick="setAccent('#0EA5E9','14,165,233',this)"></div>
+            <div class="swatch" style="background:#7C3AED" onclick="setAccent('#7C3AED','124,58,237',this)"></div>
+            <div class="swatch" style="background:#059669" onclick="setAccent('#059669','5,150,105',this)"></div>
+            <div class="swatch" style="background:#DC2626" onclick="setAccent('#DC2626','220,38,38',this)"></div>
+            <div class="swatch" style="background:#D97706" onclick="setAccent('#D97706','217,119,6',this)"></div>
+            <div class="swatch" style="background:#DB2777" onclick="setAccent('#DB2777','219,39,119',this)"></div>
+            <div class="swatch" style="background:#0891B2" onclick="setAccent('#0891B2','8,145,178',this)"></div>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:16px"><label>Custom Domain</label><input type="text" placeholder="crm.yourcompany.com"/></div>
+        <div class="form-group" style="margin-top:20px"><label>Starter industry presets</label><div class="preset-launcher"><button onclick="applyTemplatePreset('agency')"><strong>Agency OS</strong><span>Projects, clients, utilization</span></button><button onclick="applyTemplatePreset('sales')"><strong>Revenue OS</strong><span>Pipeline, deals, follow-ups</span></button><button onclick="applyTemplatePreset('people')"><strong>People Hub</strong><span>Workforce, KPI, engagement</span></button></div></div>
+        <div class="form-group" style="margin-top:20px"><label>Demo presentation tools</label><div class="demo-mode-row"><button class="btn-secondary" onclick="togglePresentationMode()">Toggle presentation mode</button><button class="btn-secondary" onclick="resetDemoData()">Reset to clean demo</button></div><small style="display:block;color:var(--text3);margin-top:8px">Presentation mode hides editing chrome for screenshots, sales demos, and client previews.</small></div>
+        <div class="modal-footer" style="justify-content:flex-start;margin-top:16px">
+          <button class="btn-primary" onclick="applyWL()">Apply Changes</button>
+          <button class="btn-secondary" onclick="showPage('dashboard')">Back</button>
+        </div>
+      </div>
+      <div class="wl-panel" style="margin-top:18px;max-width:760px">
+        <h3>Template Builder</h3>
+        <p style="color:var(--text2);font-size:12px;line-height:1.5">Make this template yours. Changes are saved in this browser and can be used as a starting point for your own branded workspace.</p>
+        <div class="preset-grid" style="margin-top:14px">
+          <button class="preset-card" onclick="applyPreset('agency')"><strong>Agency OS</strong><span>Clients, projects, utilization, and delivery.</span></button>
+          <button class="preset-card" onclick="applyPreset('sales')"><strong>Sales Command</strong><span>Pipeline, follow-ups, quotas, and velocity.</span></button>
+          <button class="preset-card" onclick="applyPreset('people')"><strong>People Hub</strong><span>Performance, workforce, and team health.</span></button><button class="preset-card" onclick="applyPreset('consulting')"><strong>Consulting OS</strong><span>Engagements, milestones, utilization.</span></button><button class="preset-card" onclick="applyPreset('creative')"><strong>Creative Studio</strong><span>Briefs, approvals, deliverables.</span></button><button class="preset-card" onclick="applyPreset('saas')"><strong>SaaS Operations</strong><span>Accounts, renewals, support health.</span></button>
+        </div>
+        <div class="builder-grid">
+          <div class="builder-option"><label>Show analytics module <input id="builder-analytics" type="checkbox" checked onchange="saveBuilderConfig()"></label></div>
+          <div class="builder-option"><label>Show audit module <input id="builder-audit" type="checkbox" checked onchange="saveBuilderConfig()"></label></div>
+          <div class="builder-option"><label>Density<select id="builder-density" onchange="saveBuilderConfig()"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label></div>
+          <div class="builder-option"><label>Theme<select id="builder-theme" onchange="saveBuilderConfig()"><option value="dark">Dark</option><option value="light">Light</option></select></label></div>
+        </div>
+        <div class="modal-footer" style="justify-content:flex-start"><button class="btn-secondary" onclick="openOnboarding(true)">Replay onboarding</button><button class="btn-secondary" onclick="resetDemoData()">Reset demo data</button></div>
+        <h3 style="margin-top:24px">Permission matrix</h3><p style="color:var(--text2);font-size:12px">Control which workspaces can change data. Read-only observer access is always preserved.</p>
+        <table class="permission-matrix"><thead><tr><th>Capability</th><th>Admin</th><th>Staff</th><th>Employee</th><th>Observer</th></tr></thead><tbody id="permission-body"></tbody></table>
+        <h3 style="margin-top:26px">Workspace Generator</h3><p style="color:var(--text2);font-size:12px">Generate a focused starter configuration for a specific buyer profile.</p><div class="generator-grid"><label>Industry<select id="generator-industry"><option value="agency">Agency</option><option value="sales">Sales</option><option value="people">People operations</option><option value="consulting">Consulting</option><option value="creative">Creative studio</option><option value="saas">SaaS operations</option></select></label><label>Team size<select id="generator-size"><option>Small team</option><option>Growing team</option><option>Enterprise team</option></select></label><label>Primary workflow<select id="generator-workflow"><option>Delivery</option><option>Revenue</option><option>Workforce</option><option>Client success</option></select></label><label>Default role<select id="generator-role"><option value="admin">Admin</option><option value="staff">Staff</option><option value="employee">Employee</option><option value="observer">Observer</option></select></label></div><button class="btn-primary" style="margin-top:12px" onclick="generateWorkspace()">Generate workspace →</button><div class="generator-result" id="generator-result">Choose a profile to generate a reusable workspace configuration.</div>
+        <h3 style="margin-top:26px">Visual automation builder</h3><p style="color:var(--text2);font-size:12px">Create demo-ready rules without writing code.</p><div class="automation-builder"><select id="rule-trigger"><option>Project deadline</option><option>New hot lead</option><option>Task due today</option><option>KPI below target</option></select><select id="rule-condition"><option>is within 3 days</option><option>is created</option><option>is not Done</option><option>falls below 80</option></select><select id="rule-action"><option>Show notification</option><option>Create audit event</option><option>Highlight in dashboard</option><option>Send daily digest</option></select></div><button class="btn-secondary" onclick="saveAutomationRule()">＋ Add automation rule</button><div class="rule-list" id="rule-list"></div>
+        <h3 style="margin-top:26px">Demo data generator</h3><p style="color:var(--text2);font-size:12px">Create denser sample data for screenshots and sales walkthroughs.</p><div class="demo-mode-row"><button class="btn-secondary" onclick="generateDemoData('small')">Small workspace</button><button class="btn-secondary" onclick="generateDemoData('growing')">Growing team</button><button class="btn-secondary" onclick="generateDemoData('enterprise')">Enterprise demo</button></div>
+        <h3 style="margin-top:26px">Accessibility & quality controls</h3><div class="a11y-row"><button class="btn-secondary" onclick="toggleAccessibility('high-contrast')">High contrast</button><button class="btn-secondary" onclick="toggleAccessibility('reduced-motion')">Reduced motion</button><button class="btn-secondary" onclick="openComponentLibrary()">Open UI kit</button></div>
+      </div>
+    </div>
+
+    <!-- ══ OBSERVER SHOWCASE ═══════════════════════════════════ -->
+    <div class="page" id="page-observer">
+
+      <div class="obs-section-title">① Admin Dashboard — Live KPIs & Revenue Funnel</div>
+      <div class="card-grid" id="obs-stats"></div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-title">Departmental Efficiency</div><canvas id="obs-chart-dept"></canvas></div>
+        <div class="chart-card"><div class="chart-title">Revenue Pipeline</div><div id="obs-funnel"></div></div>
+      </div>
+
+      <div class="obs-divider"></div>
+
+      <div class="obs-section-title">② Employee Performance Hub — Clock-in, KPI Radar & Tasks</div>
+      <div class="emp-hero" style="margin-bottom:18px">
+        <div><h2>Employee View: Vikram Sharma</h2><p>Engineering · Senior Dev · Observer Preview</p></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div class="clock-timer inactive">—:——:——</div>
+          <button class="clock-btn clock-in" style="font-size:12px;padding:8px 14px">▶ Clock In (demo)</button>
+        </div>
+      </div>
+      <div class="perf-strip" id="obs-perf-strip"></div>
+      <div class="charts-grid">
+        <div class="radar-card"><div class="radar-title">Skills Radar</div><canvas id="obs-chart-radar" style="max-height:240px"></canvas></div>
+        <div class="chart-card">
+          <div class="chart-title">Kanban Task Board (employee view)</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Tasks filtered to current employee only.</div>
+          <div id="obs-kanban-mini"></div>
+        </div>
+      </div>
+
+      <div class="obs-divider"></div>
+
+      <div class="obs-section-title">③ Data Tables — Projects, Employees & Sales Leads</div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px">Sales Pipeline</div>
+        <div class="tbl-wrap"><table><thead><tr><th>Lead</th><th>Value</th><th>Stage</th><th>Probability</th><th>Weighted</th></tr></thead><tbody id="obs-leads-tbody"></tbody></table></div>
+      </div>
+
+      <div class="obs-divider"></div>
+
+      <div class="obs-section-title">④ Analytics — Pipeline & Efficiency Charts</div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-title">Pipeline by Stage</div><canvas id="obs-chart-pipeline"></canvas></div>
+        <div class="chart-card"><div class="chart-title">Budget by Status</div><canvas id="obs-chart-budget"></canvas></div>
+      </div>
+
+      <div class="obs-divider"></div>
+
+      <div class="obs-section-title">⑤ Enterprise Add-ins Preview</div>
+      <div class="card-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card" style="text-align:center"><div style="font-size:28px;margin-bottom:8px">📄</div><div class="stat-label">PDF Reports</div><div style="font-size:12px;color:var(--text2);margin-top:4px">Export CRM, HR, and project data as branded PDFs with headers.</div></div>
+        <div class="stat-card" style="text-align:center"><div style="font-size:28px;margin-bottom:8px">🤖</div><div class="stat-label">Predictive AI</div><div style="font-size:12px;color:var(--text2);margin-top:4px">Win probability scoring, churn risk, and project deadline alerts.</div></div>
+        <div class="stat-card" style="text-align:center"><div style="font-size:28px;margin-bottom:8px">🔍</div><div class="stat-label">Audit Log</div><div style="font-size:12px;color:var(--text2);margin-top:4px">Full action trail: every CRUD, role change, and login event.</div></div>
+      </div>
+    </div><!-- /observer -->
+
+  </main>
+</div>
+
+<!-- ═══ MODAL ═══════════════════════════════════════════════ -->
+<div id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3 id="modal-title">Add New</h3>
+    <div id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div><div class="presentation-badge">Presentation mode · Press Escape to exit</div>
+
+<div id="library-panel" onclick="closeComponentLibraryOutside(event)"><div class="help-card" style="width:760px"><div class="overlay-head"><div><span class="version-badge">CORP·NEXUS UI KIT</span><h2>Component library & quality states</h2></div><button class="overlay-close" onclick="closeComponentLibrary()">✕</button></div><p class="help-copy">Reusable visual patterns included in the template. Every component has a demo-ready state, not only the happy path.</p><div class="kit-grid"><div class="kit-sample"><h4>Buttons & actions</h4><button class="btn-primary">Primary action</button> <button class="btn-secondary">Secondary</button><small>Hover, focus, disabled, and permission-denied states are supported.</small></div><div class="kit-sample"><h4>Status badges</h4><span class="status-badge live">Live</span> <span class="status-badge review">Review</span> <span class="status-badge done">Done</span><small>Color is paired with readable labels.</small></div><div class="kit-sample"><h4>Empty state</h4><div class="state-sample">No records yet. Start by creating your first item.</div></div><div class="kit-sample"><h4>Error state</h4><div class="state-sample error">Import could not be completed. Review the highlighted columns.</div></div><div class="kit-sample"><h4>Success state</h4><div class="state-sample success">Workspace generated successfully.</div></div><div class="kit-sample"><h4>Loading state</h4><div class="skeleton" style="height:10px;margin-bottom:8px"></div><div class="skeleton" style="height:10px;width:70%"></div></div></div></div></div>
+<div id="app-dialog" onclick="closeDialogOutside(event)"><div class="dialog-card"><div class="overlay-head"><div><h2 id="dialog-title">Confirm action</h2><div class="dialog-copy" id="dialog-copy"></div></div><button class="overlay-close" onclick="closeAppDialog()">✕</button></div><div id="dialog-content"></div><div class="dialog-error" id="dialog-error"></div><div class="dialog-actions"><button class="btn-secondary" onclick="closeAppDialog()">Cancel</button><button class="btn-primary" id="dialog-confirm" onclick="confirmAppDialog()">Confirm</button></div></div></div>
+<div id="help-panel" onclick="closeHelpOutside(event)"><div class="help-card"><div class="overlay-head"><div><span class="version-badge">DIAMOND EDITION · v1.4</span><h2>Help & changelog</h2></div><button class="overlay-close" onclick="closeHelp()">✕</button></div><div class="help-section"><h3>Getting started</h3><p>Use the onboarding flow to choose an industry preset, set your brand, and enter a role-aware workspace. Open Template Builder at any time to change modules, density, themes, and permissions.</p></div><div class="help-section"><h3>Keyboard shortcuts</h3><ul><li><b>Ctrl / ⌘ + K</b> — command palette</li><li><b>/</b> — focus global search</li><li><b>Escape</b> — close overlays and dialogs</li></ul></div><div class="help-section"><h3>Changelog</h3><p><b>v1.4</b> — Workspace Generator, vertical starter packs, visual automation builder, demo-data generator, component library, accessibility controls, and handoff documentation.</p><p><b>v1.3</b> — Presentation mode, industry launchers, and marketplace demo polish.</p><p><b>v1.2</b> — Branded dialogs, undoable deletes, CSV preview validation, sortable paginated tables, deep links, and backend adapter hooks.</p></div><div class="help-section"><h3>Backend integration</h3><p>The local data adapter is isolated behind clear functions so a future REST, Supabase, Firebase, or custom API connection can replace browser persistence without rewriting the UI.</p></div></div></div>
+<div id="landing-overlay"><div class="landing-card"><div class="eyebrow">Corp·Nexus Diamond · Template Edition</div><h1>A role-aware operations OS your clients can make their own.</h1><p>A polished, configurable workspace for agencies, sales teams, and people operations—with automation signals, saved views, branding controls, and a buyer-friendly demo experience.</p><div class="landing-points"><div class="landing-point"><b>Role-aware workspaces</b><span>Show each person the work that matters to them.</span></div><div class="landing-point"><b>Automation-ready</b><span>Turn operational signals into timely next actions.</span></div><div class="landing-point"><b>Brandable by design</b><span>Presets, themes, density, and permissions included.</span></div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="add-btn" onclick="launchDemo()">Launch interactive demo →</button><button class="btn-secondary" onclick="openOnboarding(true);closeLanding()">Customize template</button></div><div class="landing-auth-actions"><button class="btn-secondary" onclick="openAuth('signin')">Sign in</button><button class="btn-secondary" onclick="openAuth('signup')">Create account</button></div><div style="margin-top:18px;color:var(--text3);font-size:10px">Diamond Edition · Browser-ready demo · No setup required</div></div></div>
+<div id="auth-overlay" class="auth-overlay" onclick="closeAuthOutside(event)"><div class="auth-card"><button class="auth-close" onclick="closeAuth()">×</button><div class="auth-brand"><div class="auth-mark">C</div><div><strong>Corp·Nexus</strong><div style="font-size:10px;color:var(--text3)">Diamond workspace</div></div></div><h2 id="auth-title">Welcome back</h2><p class="auth-copy" id="auth-copy">Sign in to continue to your role-aware operations workspace.</p><div class="auth-tabs"><button class="auth-tab active" id="auth-signin-tab" onclick="setAuthMode('signin')">Sign in</button><button class="auth-tab" id="auth-signup-tab" onclick="setAuthMode('signup')">Create account</button></div><form class="auth-form" onsubmit="submitAuth(event)"><label id="auth-name-wrap" style="display:none">Full name<input id="auth-name" placeholder="Your name"></label><label>Work email<input id="auth-email" type="email" placeholder="you@company.com" required></label><label>Password<div class="auth-password"><input id="auth-password" type="password" placeholder="At least 6 characters" required><button type="button" onclick="toggleAuthPassword()">Show</button></div></label><div class="auth-row"><label><input id="auth-remember" type="checkbox" checked> Remember me</label><button type="button" class="auth-link" onclick="showToast('Password reset is ready for backend integration.','info')">Forgot password?</button></div><div id="auth-error" class="auth-error"></div><button class="btn-primary" id="auth-submit" type="submit">Sign in →</button></form><div class="auth-demo"><div class="auth-demo-title">Quick demo access</div><div class="auth-demo-grid"><button onclick="demoAuth('admin')">Admin</button><button onclick="demoAuth('staff')">Staff</button><button onclick="demoAuth('employee')">Employee</button><button onclick="demoAuth('observer')">Observer</button></div></div><div class="auth-note"><strong style="display:block;color:var(--accent);font-size:11px;margin-bottom:4px">Demo mode — any email/password will get you in.</strong>Demo authentication is frontend-only. Connect a backend provider before using real accounts.</div></div></div>
+<div id="notification-panel" onclick="closeOverlayOutside(event,'notification-panel')"><div class="overlay-card"><div class="overlay-head"><div><h2>Notification center</h2><div class="overlay-sub">Automated signals and role-relevant updates from your workspace.</div></div><button class="overlay-close" onclick="closeOverlay('notification-panel')">✕</button></div><div id="notification-list"></div></div></div>
+<div id="command-panel" onclick="closeOverlayOutside(event,'command-panel')"><div class="overlay-card"><div class="overlay-head"><div><h2>Command palette</h2><div class="overlay-sub">Jump anywhere or trigger a common action.</div></div><button class="overlay-close" onclick="closeOverlay('command-panel')">✕</button></div><input class="command-search" id="command-search" placeholder="Search commands…" oninput="renderCommands(this.value)"><div class="command-list" id="command-list"></div></div></div>
+<div id="onboarding-overlay"><div class="overlay-card"><div class="overlay-head"><div><div class="eyebrow">Welcome to your workspace</div><h2>Shape the template in minutes</h2><div class="overlay-sub">Start with a relevant operating model, then customize the experience for your team.</div></div><button class="overlay-close" onclick="finishOnboarding()">✕</button></div><div class="onboarding-progress"><span class="active" id="onboard-dot-1"></span><span id="onboard-dot-2"></span><span id="onboard-dot-3"></span></div><div class="onboarding-step active" id="onboard-step-1"><h3 style="font-size:14px;margin-bottom:12px">What are you building?</h3><div class="preset-grid"><button class="preset-card" onclick="selectOnboardingPreset('agency')"><strong>Agency / Services</strong><span>Delivery, clients, projects, and utilization.</span></button><button class="preset-card" onclick="selectOnboardingPreset('sales')"><strong>Sales team</strong><span>Pipeline, deals, follow-ups, and conversion.</span></button><button class="preset-card" onclick="selectOnboardingPreset('people')"><strong>People operations</strong><span>Performance, workforce, and engagement.</span></button></div></div><div class="onboarding-step" id="onboard-step-2"><h3 style="font-size:14px;margin-bottom:12px">Make it yours</h3><div class="form-group"><label>Workspace name</label><input id="onboard-name" value="Corp·Nexus" placeholder="Your company name"></div><div class="form-group"><label>Short descriptor</label><input id="onboard-tag" value="Operations OS" placeholder="e.g. Studio HQ"></div></div><div class="onboarding-step" id="onboard-step-3"><h3 style="font-size:14px;margin-bottom:12px">Your workspace is ready</h3><div class="insight-card"><div class="insight-icon">✦</div><div><strong>Role-aware by default</strong><span>Each role gets a focused view, tailored actions, and automated signals.</span></div></div><div class="insight-card" style="margin-top:10px"><div class="insight-icon">↗</div><div><strong>Ready for customization</strong><span>Use Template Builder anytime to change modules, density, theme, and presets.</span></div></div></div><div class="onboarding-footer"><small id="onboard-step-label">Step 1 of 3</small><div style="display:flex;gap:8px"><button class="btn-secondary" id="onboard-back" onclick="changeOnboarding(-1)" style="display:none">Back</button><button class="btn-primary" id="onboard-next" onclick="changeOnboarding(1)">Continue</button></div></div></div></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   SAAS_STATE ENGINE
+═══════════════════════════════════════════════════════════════ */
+const SaaS_State = (() => {
+  const audit     = [];
+
+  let state = {
+    role: 'admin',
+    currentPage: 'dashboard',
+    templateConfig: { preset:'agency', name:'Corp·Nexus', tag:'Diamond Edition', analytics:true, audit:true, density:'comfortable', theme:'dark' },
+    savedViews: { projects:[], employees:[], leads:[] },
+    permissions: { projects:{admin:true,staff:true,employee:false,observer:false}, employees:{admin:true,staff:true,employee:false,observer:false}, sales:{admin:true,staff:true,employee:false,observer:false}, tasks:{admin:true,staff:true,employee:true,observer:false} },
+    addins: { pdf: true, pred: false, audit: true },
+    automationSettings: { reminders: true, riskFlags: true, digest: true },
+    customRules: [],
+
+    /* PROJECTS */
+    projects: [
+      { id:1, name:'Nexus Portal Redesign',  client:'TechCorp India',   team:'Frontend Squad', budget:1500000,  deadline:'2025-09-30', status:'Live'     },
+      { id:2, name:'ERP Migration',          client:'Bharat Steel Ltd', team:'Backend Guild',  budget:4200000,  deadline:'2025-12-15', status:'Planning' },
+      { id:3, name:'Mobile App v2',          client:'FinServ Pro',      team:'Mobile Team',    budget:2800000,  deadline:'2025-07-01', status:'Live'     },
+      { id:4, name:'Data Warehouse',         client:'RetailMax',        team:'Data Ops',       budget:900000,   deadline:'2025-05-20', status:'Done'     },
+      { id:5, name:'AI Chatbot',             client:'EduTech Ventures', team:'AI Lab',         budget:3200000,  deadline:'2025-11-01', status:'Planning' },
+    ],
+
+    /* EMPLOYEES — include skills for radar chart */
+    employees: [
+      { id:1, name:'Vikram Sharma',  dept:'Engineering', role:'Senior Dev',      kpi:88, status:'Active',   skills:{output:88, accuracy:85, communication:70, punctuality:90, collaboration:80} },
+      { id:2, name:'Anjali Patel',   dept:'Design',      role:'Lead Designer',   kpi:92, status:'Active',   skills:{output:91, accuracy:93, communication:88, punctuality:95, collaboration:92} },
+      { id:3, name:'Rahul Gupta',    dept:'Sales',       role:'BDM',             kpi:76, status:'Active',   skills:{output:75, accuracy:70, communication:88, punctuality:72, collaboration:80} },
+      { id:4, name:'Meera Nair',     dept:'HR',          role:'HR Manager',      kpi:85, status:'Active',   skills:{output:84, accuracy:87, communication:90, punctuality:88, collaboration:85} },
+      { id:5, name:'Arjun Singh',    dept:'Engineering', role:'DevOps Lead',     kpi:90, status:'Active',   skills:{output:92, accuracy:88, communication:75, punctuality:93, collaboration:82} },
+      { id:6, name:'Priya Iyer',     dept:'Finance',     role:'Finance Analyst', kpi:83, status:'On Leave', skills:{output:80, accuracy:90, communication:78, punctuality:82, collaboration:75} },
+    ],
+
+    /* SALES LEADS */
+    leads: [
+      { id:1, name:'Infosys — Cloud Suite',  value:5000000,  stage:'Negotiation', prob:65, temp:'Hot'  },
+      { id:2, name:'Wipro — HR Platform',    value:2800000,  stage:'Proposal',    prob:40, temp:'Warm' },
+      { id:3, name:'HDFC — Analytics',       value:8000000,  stage:'Discovery',   prob:20, temp:'Cold' },
+      { id:4, name:'Reliance — CRM Rollout', value:12000000, stage:'Closed Won',  prob:100,temp:'Hot'  },
+      { id:5, name:'Tata Motors — IoT',      value:3500000,  stage:'Qualifying',  prob:30, temp:'Warm' },
+      { id:6, name:'Zomato — Analytics BI',  value:6500000,  stage:'Proposal',    prob:55, temp:'Hot'  },
+    ],
+
+    /* TASKS — for Kanban; assigned to employees by name */
+    tasks: [
+      { id:1, title:'Fix auth bug in API',        assignee:'Vikram Sharma',  priority:'High',   status:'In Progress', due:'Today' },
+      { id:2, title:'Deploy staging environment', assignee:'Vikram Sharma',  priority:'Medium', status:'To Do',       due:'Tomorrow' },
+      { id:3, title:'Code review: PR #248',       assignee:'Vikram Sharma',  priority:'Low',    status:'Done',        due:'Yesterday' },
+      { id:4, title:'Figma handoff review',       assignee:'Anjali Patel',   priority:'High',   status:'In Progress', due:'Today' },
+      { id:5, title:'Update component library',   assignee:'Anjali Patel',   priority:'Medium', status:'To Do',       due:'Friday' },
+      { id:6, title:'Lead follow-up: Infosys',    assignee:'Rahul Gupta',    priority:'High',   status:'To Do',       due:'Today' },
+      { id:7, title:'Onboard new joinee',         assignee:'Meera Nair',     priority:'Medium', status:'In Progress', due:'Wednesday' },
+      { id:8, title:'CI/CD pipeline refactor',    assignee:'Arjun Singh',    priority:'High',   status:'In Progress', due:'Friday' },
+    ],
+
+    /* Time tracking log — per employee */
+    timeLog: [],
+    clockedIn: false,
+    clockStart: null,
+  };
+
+  try {
+    const saved = JSON.parse(localStorage.getItem('corp-nexus-state') || 'null');
+    if (saved) state = { ...state, ...saved, clockedIn:false, clockStart:null };
+  } catch (e) { /* storage may be unavailable in private contexts */ }
+
+  function persist(){
+    try {
+      const safe = { role:state.role, templateConfig:state.templateConfig, savedViews:state.savedViews, permissions:state.permissions, addins:state.addins, automationSettings:state.automationSettings, customRules:state.customRules, projects:state.projects, employees:state.employees, leads:state.leads, tasks:state.tasks, timeLog:state.timeLog };
+      localStorage.setItem('corp-nexus-state', JSON.stringify(safe));
+    } catch (e) {}
+  }
+  function get() { return state; }
+  function set(patch){ Object.assign(state, patch); persist(); }
+  function log(action, detail){
+    audit.unshift({ time: new Date().toLocaleTimeString(), action, detail });
+    if (audit.length > 100) audit.pop();
+  }
+  function getAudit(){ return audit; }
+  return { get, set, log, getAudit };
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════════════ */
+let _nextId = 300;
+function uid(){ return ++_nextId; }
+
+function showToast(msg, type='success'){
+  const icons = { success:'✅', error:'❌', info:'ℹ️', warning:'⚠️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]||'✅'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>{ el.style.animation='fadeOut .3s ease forwards'; setTimeout(()=>el.remove(), 300); }, 3000);
+}
+
+function hl(str, q){
+  if (!q) return str;
+  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+  return str.replace(re, '<mark>$1</mark>');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ROLE & PAGE SYSTEM
+   Employee role → personal hub + kanban. Observer → showcase page.
+═══════════════════════════════════════════════════════════════ */
+const ROLE_ACCESS = {
+  admin:    ['dashboard','projects','employees','sales','analytics','audit','wl'],
+  staff:    ['dashboard','projects','employees','sales','analytics'],
+  employee: ['dashboard','my-hub','my-tasks'],
+  observer: ['observer']
+};
+
+function setRole(role){
+  SaaS_State.set({ role });
+  document.getElementById('header')?.classList.remove('role-admin','role-staff','role-employee','role-observer');
+  document.getElementById('header')?.classList.add(`role-${role}`);
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.toggle('active', b.dataset.role === role));
+
+  const adminTabs    = ['projects','employees','sales','analytics','audit'];
+  const empTabs      = ['my-hub','my-tasks'];
+  const allManaged   = [...adminTabs, ...empTabs, 'observer'];
+
+  document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+    const tab = item.dataset.tab;
+    if (!allManaged.includes(tab)){ item.style.display = ''; return; }
+    if (role === 'observer'){ item.style.display = tab === 'observer' ? '' : 'none'; return; }
+    if (role === 'employee'){ item.style.display = empTabs.includes(tab) ? '' : 'none'; return; }
+    item.style.display = (ROLE_ACCESS[role]||[]).includes(tab) ? '' : 'none';
+  });
+
+  const greetings = { admin:'Operations Overview 🏢', staff:'Staff Dashboard 👩‍💼', employee:'Welcome, Vikram 👋', observer:'Observer Mode 👁' };
+  const greetEl = document.getElementById('dash-greeting');
+  if (greetEl) greetEl.textContent = greetings[role] || 'Dashboard';
+
+  SaaS_State.log('Role changed', `→ ${role}`);
+  renderRoleDashboard();
+
+  if (role === 'observer')  showPage('observer');
+  else showPage('dashboard');
+
+  renderAudit();
+}
+
+function showPage(page){
+  dismissWelcomeOverlays();
+  const role = SaaS_State.get().role;
+  if (role !== 'observer' && !(ROLE_ACCESS[role]||[]).includes(page)){
+    showToast('Access restricted.', 'error'); return;
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page)?.classList.add('active');
+  document.querySelector(`.nav-item[data-tab="${page}"]`)?.classList.add('active');
+  SaaS_State.set({ currentPage: page });
+  updateDeepLink();
+  document.getElementById('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+
+  const loaders = {
+    'dashboard': ()=> { recalcKPIs(); renderRoleDashboard(); },
+    'projects':  ()=> loadTable('projects'),
+    'employees': ()=> loadTable('employees'),
+    'sales':     ()=> loadTable('leads'),
+    'analytics': ()=> setTimeout(renderAnalyticsCharts, 100),
+    'my-hub':    ()=> renderMyHub(),
+    'my-tasks':  ()=> renderKanban(),
+    'audit':     ()=> renderAudit(),
+    'observer':  ()=> setTimeout(renderObserverPage, 100),
+  };
+  loaders[page]?.();
+  if (page === 'wl') { renderPermissionMatrix(); renderSavedViews(); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TABLE RENDERING
+═══════════════════════════════════════════════════════════════ */
+let _searchTerms = { projects:'', employees:'', leads:'' };
+const _tableState = { projects:{page:1,sort:'name',dir:'asc'}, employees:{page:1,sort:'name',dir:'asc'}, leads:{page:1,sort:'name',dir:'asc'} };
+const PAGE_SIZE = 5;
+
+function loadTable(name){
+  const elName = name === 'leads' ? 'sales' : name;
+  const loadEl  = document.getElementById(elName + '-loading');
+  const tableEl = document.getElementById(elName + '-table');
+  if (!loadEl || !tableEl) return;
+  loadEl.innerHTML = [1,2,3,4].map(()=>`<div class="skeleton skel-row"></div>`).join('');
+  loadEl.style.display  = '';
+  tableEl.style.display = 'none';
+  setTimeout(()=>{ loadEl.style.display='none'; tableEl.style.display=''; renderTable(name); }, 500);
+}
+
+function filterTable(name, query){
+  const key = name === 'sales' ? 'leads' : name;
+  _searchTerms[key] = query.toLowerCase();
+  renderTable(key);
+}
+
+const STATUS_BADGE = { 'Planning':'badge-amber','Live':'badge-blue','Done':'badge-gray','Active':'badge-green','On Leave':'badge-amber' };
+const STAGE_BADGE  = { 'Qualifying':'badge-blue','Discovery':'badge-blue','Proposal':'badge-purple','Negotiation':'badge-amber','Closed Won':'badge-green','Closed Lost':'badge-red' };
+const TEMP_ICON    = { 'Hot':'🔴','Warm':'🟡','Cold':'🔵' };
+
+function sortRows(name,rows){const st=_tableState[name]||{};return [...rows].sort((a,b)=>{const av=a[st.sort]??'',bv=b[st.sort]??'';const na=Number(av),nb=Number(bv);const result=!Number.isNaN(na)&&!Number.isNaN(nb)?na-nb:String(av).localeCompare(String(bv));return st.dir==='desc'?-result:result;});}
+function renderTableControls(name,total){const el=document.getElementById(`${name==='leads'?'sales':name}-table-controls`);if(!el)return;const st=_tableState[name],pages=Math.max(1,Math.ceil(total/PAGE_SIZE));st.page=Math.min(st.page,pages);const buttons=Array.from({length:pages},(_,i)=>`<button class="${st.page===i+1?'active':''}" onclick="setTablePage('${name}',${i+1})">${i+1}</button>`).join('');const start=total?((st.page-1)*PAGE_SIZE)+1:0;const end=Math.min(st.page*PAGE_SIZE,total);el.innerHTML=`<span>Showing ${start}–${end} of ${total}</span><div style="display:flex;align-items:center;gap:9px"><select class="view-select" onchange="setTableSort('${name}',this.value)"><option value="name" ${st.sort==='name'?'selected':''}>Sort by name</option><option value="budget" ${st.sort==='budget'?'selected':''}>Sort by value</option><option value="kpi" ${st.sort==='kpi'?'selected':''}>Sort by KPI</option><option value="prob" ${st.sort==='prob'?'selected':''}>Sort by probability</option></select><button class="tool-btn" onclick="setTableSort('${name}','${st.sort}',true)">${st.dir==='asc'?'↑':'↓'}</button><div class="page-controls">${buttons}</div></div>`;}
+function setTablePage(name,page){_tableState[name].page=page;renderTable(name);}
+function setTableSort(name,sort,toggle=false){const st=_tableState[name];if(toggle)st.dir=st.dir==='asc'?'desc':'asc';else{if(st.sort===sort)st.dir=st.dir==='asc'?'desc':'asc';else{st.sort=sort;st.dir='asc';}}st.page=1;renderTable(name);}
+function rowsForTable(name,rows){const sorted=sortRows(name,rows),st=_tableState[name];renderTableControls(name,sorted.length);return sorted.slice((st.page-1)*PAGE_SIZE,st.page*PAGE_SIZE);}
+
+function renderTable(name){
+  const s = SaaS_State.get();
+  const q = _searchTerms[name] || '';
+
+  if (name === 'projects'){
+    let rows = s.projects.filter(p => p.name.toLowerCase().includes(q) || p.client.toLowerCase().includes(q) || p.team.toLowerCase().includes(q));
+    rows = rowsForTable('projects', rows);
+    document.getElementById('projects-tbody').innerHTML = rows.length
+      ? rows.map(p=>`<tr>
+          <td data-label="Project"><strong style="font-family:'Space Grotesk',sans-serif">${hl(p.name,q)}</strong></td>
+          <td data-label="Client" style="color:var(--text2)">${hl(p.client,q)}</td>
+          <td data-label="Team"><span class="badge badge-purple">${p.team}</span></td>
+          <td data-label="Budget" style="font-weight:500">₹${(p.budget/100000).toFixed(1)}L</td>
+          <td data-label="Deadline" style="color:var(--text2)">${p.deadline}</td>
+          <td data-label="Status"><span class="badge ${STATUS_BADGE[p.status]||'badge-gray'}">${p.status}</span></td>
+          <td data-label="Actions">
+            <button class="icon-btn" onclick="openModal('project',${p.id})">✏️</button>
+            <button class="icon-btn del" onclick="deleteEntry('projects',${p.id})">🗑️</button>
+          </td>
+        </tr>`).join('')
+      : `<tr><td colspan="7" style="color:var(--text3);text-align:center;padding:20px">No results</td></tr>`;
+  }
+
+  if (name === 'employees'){
+    let rows = s.employees.filter(e => e.name.toLowerCase().includes(q) || e.dept.toLowerCase().includes(q) || e.role.toLowerCase().includes(q));
+    rows = rowsForTable('employees', rows);
+    document.getElementById('employees-tbody').innerHTML = rows.length
+      ? rows.map(e=>`<tr>
+          <td data-label="Name"><strong style="font-family:'Space Grotesk',sans-serif">${hl(e.name,q)}</strong></td>
+          <td data-label="Department">${hl(e.dept,q)}</td>
+          <td data-label="Role" style="color:var(--text2)">${e.role}</td>
+          <td data-label="KPI Score">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="progress-bar" style="width:70px"><div class="progress-fill" style="width:${e.kpi}%;background:${e.kpi>=85?'var(--green)':e.kpi>=70?'var(--amber)':'var(--red)'}"></div></div>
+              <span style="font-size:11px;color:var(--text2)">${e.kpi}</span>
+            </div>
+          </td>
+          <td data-label="Status"><span class="badge ${STATUS_BADGE[e.status]||'badge-gray'}">${e.status}</span></td>
+          <td data-label="Actions">
+            <button class="icon-btn" onclick="openModal('employee',${e.id})">✏️</button>
+            <button class="icon-btn del" onclick="deleteEntry('employees',${e.id})">🗑️</button>
+          </td>
+        </tr>`).join('')
+      : `<tr><td colspan="6" style="color:var(--text3);text-align:center;padding:20px">No results</td></tr>`;
+  }
+
+  if (name === 'leads'){
+    let rows = s.leads.filter(l => l.name.toLowerCase().includes(q) || l.stage.toLowerCase().includes(q));
+    rows = rowsForTable('leads', rows);
+    document.getElementById('leads-tbody').innerHTML = rows.length
+      ? rows.map(l=>`<tr>
+          <td data-label="Lead"><strong style="font-family:'Space Grotesk',sans-serif">${hl(l.name,q)}</strong></td>
+          <td data-label="Deal Value">₹${(l.value/100000).toFixed(1)}L</td>
+          <td data-label="Stage"><span class="badge ${STAGE_BADGE[l.stage]||'badge-gray'}">${l.stage}</span></td>
+          <td data-label="Probability">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="progress-bar" style="width:60px"><div class="progress-fill" style="width:${l.prob}%;background:var(--accent)"></div></div>
+              <span style="font-size:11px">${l.prob}%</span>
+            </div>
+          </td>
+          <td data-label="Weighted" style="color:var(--green);font-weight:600">₹${((l.value*l.prob/100)/100000).toFixed(1)}L</td>
+          <td data-label="Temperature">${TEMP_ICON[l.temp]||''} ${l.temp}</td>
+          <td data-label="Actions">
+            <button class="icon-btn" onclick="openModal('lead',${l.id})">✏️</button>
+            <button class="icon-btn del" onclick="deleteEntry('leads',${l.id})">🗑️</button>
+          </td>
+        </tr>`).join('')
+      : `<tr><td colspan="7" style="color:var(--text3);text-align:center;padding:20px">No results</td></tr>`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EMPLOYEE HUB — personal performance + clock-in
+═══════════════════════════════════════════════════════════════ */
+let _clockInterval = null;
+let _radarChart    = null;
+
+function renderMyHub(){
+  const s = SaaS_State.get();
+  /* In demo context, employee is always Vikram (id:1) */
+  const emp = s.employees.find(e=>e.id===1) || s.employees[0];
+  if (!emp) return;
+
+  /* KPI strip */
+  document.getElementById('perf-strip').innerHTML = `
+    <div class="perf-card"><div class="perf-label">KPI Score</div><div class="perf-val" style="color:${emp.kpi>=85?'var(--green)':emp.kpi>=70?'var(--amber)':'var(--red)'}">${emp.kpi}</div></div>
+    <div class="perf-card"><div class="perf-label">Tasks Done</div><div class="perf-val">${s.tasks.filter(t=>t.assignee===emp.name&&t.status==='Done').length}</div></div>
+    <div class="perf-card"><div class="perf-label">In Progress</div><div class="perf-val" style="color:var(--accent)">${s.tasks.filter(t=>t.assignee===emp.name&&t.status==='In Progress').length}</div></div>
+    <div class="perf-card"><div class="perf-label">Department</div><div class="perf-val" style="font-size:16px">${emp.dept}</div></div>
+  `;
+
+  /* Radar chart */
+  if (_radarChart) _radarChart.destroy();
+  _radarChart = new Chart(document.getElementById('chart-radar'), {
+    type: 'radar',
+    data: {
+      labels: ['Output','Accuracy','Communication','Punctuality','Collaboration'],
+      datasets: [{
+        label: emp.name,
+        data: Object.values(emp.skills),
+        backgroundColor: 'rgba(14,165,233,0.15)',
+        borderColor: 'rgba(14,165,233,0.9)',
+        borderWidth: 2,
+        pointBackgroundColor: 'var(--accent)',
+        pointBorderColor: '#fff',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        r: {
+          min: 0, max: 100,
+          ticks: { display: false },
+          grid:  { color: 'rgba(255,255,255,0.08)' },
+          angleLines: { color: 'rgba(255,255,255,0.08)' },
+          pointLabels: { color: '#8090B0', font: { family: 'DM Sans', size: 12 } }
+        }
+      }
+    }
+  });
+
+  renderTimeLog();
+}
+
+/* Clock-in / Clock-out toggle */
+function toggleClock(){
+  const s   = SaaS_State.get();
+  const btn = document.getElementById('clock-btn');
+
+  if (!s.clockedIn){
+    /* Start clock */
+    const start = new Date();
+    SaaS_State.set({ clockedIn: true, clockStart: start });
+    btn.className = 'clock-btn clock-out';
+    btn.textContent = '⏹ Clock Out';
+    document.getElementById('clock-display').classList.remove('inactive');
+    _clockInterval = setInterval(() => updateTimer(start), 1000);
+    SaaS_State.log('CLOCK IN', `Vikram Sharma → ${start.toLocaleTimeString()}`);
+    showToast('Clocked in successfully!', 'success');
+  } else {
+    /* Stop clock + log entry */
+    const end   = new Date();
+    const start = s.clockStart;
+    const secs  = Math.floor((end - start) / 1000);
+    const dur   = `${Math.floor(secs/3600)}h ${Math.floor((secs%3600)/60)}m`;
+    clearInterval(_clockInterval);
+    _clockInterval = null;
+
+    const newLog = [...s.timeLog, { in: start.toLocaleTimeString(), out: end.toLocaleTimeString(), dur }];
+    SaaS_State.set({ clockedIn: false, clockStart: null, timeLog: newLog });
+
+    btn.className = 'clock-btn clock-in';
+    btn.textContent = '▶ Clock In';
+    document.getElementById('clock-display').textContent = '—:——:——';
+    document.getElementById('clock-display').classList.add('inactive');
+    SaaS_State.log('CLOCK OUT', `Vikram Sharma → ${end.toLocaleTimeString()} (${dur})`);
+    renderTimeLog();
+    showToast(`Session recorded: ${dur}`, 'info');
+  }
+}
+
+function updateTimer(start){
+  const el = document.getElementById('clock-display');
+  if (!el) return;
+  const secs  = Math.floor((new Date() - start) / 1000);
+  const h = String(Math.floor(secs/3600)).padStart(2,'0');
+  const m = String(Math.floor((secs%3600)/60)).padStart(2,'0');
+  const s = String(secs%60).padStart(2,'0');
+  el.textContent = `${h}:${m}:${s}`;
+}
+
+function renderTimeLog(){
+  const s  = SaaS_State.get();
+  const el = document.getElementById('time-log');
+  if (!el) return;
+  el.innerHTML = s.timeLog.length
+    ? s.timeLog.map(e=>`
+        <div class="time-entry">
+          <span>In: <strong>${e.in}</strong></span>
+          <span>Out: <strong>${e.out}</strong></span>
+          <span style="color:var(--accent)">${e.dur}</span>
+        </div>`).join('')
+    : `<div style="color:var(--text3);font-size:12px;padding:12px 0">No clock-in events yet.</div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KANBAN TASK BOARD
+   Tasks filtered to the active employee only.
+═══════════════════════════════════════════════════════════════ */
+const KANBAN_COLS = ['To Do', 'In Progress', 'Done'];
+const PRI_CLASS   = { 'High':'pri-high', 'Medium':'pri-medium', 'Low':'pri-low' };
+
+function renderKanban(containerEl=null, employeeName='Vikram Sharma'){
+  const s    = SaaS_State.get();
+  const myTasks = s.tasks.filter(t => t.assignee === employeeName);
+  const target  = containerEl || document.getElementById('kanban-board');
+  if (!target) return;
+
+  target.innerHTML = KANBAN_COLS.map(col => {
+    const colTasks = myTasks.filter(t => t.status === col);
+    const colColor = { 'To Do':'var(--text2)', 'In Progress':'var(--accent)', 'Done':'var(--green)' }[col];
+    return `
+      <div class="kanban-col">
+        <div class="kanban-col-title" style="color:${colColor}">
+          ${col}<span class="kanban-count">${colTasks.length}</span>
+        </div>
+        ${colTasks.length ? colTasks.map(t=>`
+          <div class="task-card">
+            <div class="task-title">${t.title}</div>
+            <div class="task-meta">
+              <span class="task-priority ${PRI_CLASS[t.priority]||''}">${t.priority}</span>
+              <span>📅 ${t.due}</span>
+              <button class="icon-btn del" style="padding:1px 6px;font-size:11px" onclick="deleteEntry('tasks',${t.id})">×</button>
+            </div>
+          </div>`).join('')
+          : `<div style="font-size:12px;color:var(--text3);padding:8px 0">Nothing here</div>`}
+      </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD & KPI RECALCULATION
+   Fires after every delete to keep stats accurate.
+═══════════════════════════════════════════════════════════════ */
+function getAutomationItems(role){
+  const s=SaaS_State.get();
+  const today=new Date(); today.setHours(0,0,0,0);
+  const items=[];
+  if (s.automationSettings?.riskFlags !== false) {
+    s.projects.filter(p=>p.status!=='Done' && p.deadline && new Date(p.deadline)<today).slice(0,3).forEach(p=>items.push({icon:'◷',title:'Deadline risk',detail:`${p.name} is past its deadline`,action:"showPage('projects')",button:'Review'}));
+    s.employees.filter(e=>e.status==='Active' && e.kpi<80).slice(0,2).forEach(e=>items.push({icon:'!',title:'Performance watch',detail:`${e.name} is below the 80 KPI threshold`,action:"showPage('employees')",button:'Open'}));
+  }
+  if (s.automationSettings?.reminders !== false) {
+    s.leads.filter(l=>l.temp==='Hot' && l.stage!=='Closed Won').slice(0,3).forEach(l=>items.push({icon:'↗',title:'Hot lead follow-up',detail:`${l.name} needs a sales touch`,action:"showPage('sales')",button:'Follow up'}));
+    s.tasks.filter(t=>t.due==='Today' && t.status!=='Done').slice(0,3).forEach(t=>items.push({icon:'✓',title:'Due today',detail:t.title,action:"showPage('my-tasks')",button:'View'}));
+  }
+  return items.slice(0,5);
+}
+
+function toggleAutomation(key){
+  const s=SaaS_State.get();
+  const settings={...(s.automationSettings||{}),[key]:!s.automationSettings?.[key]};
+  SaaS_State.set({automationSettings:settings});
+  SaaS_State.log('AUTOMATION', `${key} → ${settings[key]?'enabled':'disabled'}`);
+  renderRoleDashboard();
+  showToast(`${key==='riskFlags'?'Risk flags':key==='reminders'?'Smart reminders':'Daily digest'} ${settings[key]?'enabled':'disabled'}.`,'info');
+}
+
+function renderRoleDashboard(){
+  const host=document.getElementById('role-workspace');
+  const page=document.getElementById('page-dashboard');
+  if (!host || !page) return;
+  const s=SaaS_State.get(), role=s.role;
+  const emp=s.employees.find(e=>e.id===1)||s.employees[0];
+  const overdue=s.projects.filter(p=>p.status!=='Done' && p.deadline && new Date(p.deadline)<new Date()).length;
+  const hot=s.leads.filter(l=>l.temp==='Hot' && l.stage!=='Closed Won').length;
+  const active=s.employees.filter(e=>e.status==='Active').length;
+  const myTasks=s.tasks.filter(t=>t.assignee===emp?.name);
+  const items=getAutomationItems(role);
+  const settings=s.automationSettings||{};
+  const rules=[['riskFlags','Risk flags'],['reminders','Smart reminders'],['digest','Daily digest']];
+  const queue=items.length?items.map(i=>`<div class="queue-item"><div class="queue-icon">${i.icon}</div><div class="queue-copy"><strong>${i.title}</strong><span>${i.detail}</span></div><button class="queue-action" onclick="${i.action}">${i.button}</button></div>`).join(''):`<div class="empty-state"><strong>All clear</strong><span>No automated actions need attention right now.</span></div>`;
+  const settingsBar=`<div class="card" style="margin-bottom:20px;padding:14px 18px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><strong style="font-size:12px">Role-based automations</strong><div style="font-size:11px;color:var(--text2);margin-top:3px">Tune the signals shown in this workspace.</div></div><div style="display:flex;gap:14px;flex-wrap:wrap">${rules.map(r=>`<label class="auto-toggle"><input type="checkbox" ${settings[r[0]]!==false?'checked':''} onchange="toggleAutomation('${r[0]}')">${r[1]}</label>`).join('')}</div></div></div>`;
+  if(role==='employee'){
+    page.classList.add('employee-mode');
+    document.getElementById('dash-eyebrow').textContent='Personal workday';
+    document.getElementById('dash-description').textContent='A focused view of your shift, priorities, and progress—without the executive noise.';
+    document.querySelector('.hero-actions').innerHTML='<button class="btn-secondary" onclick="showPage(\'my-tasks\')">Open my tasks</button><button class="add-btn" onclick="openModal(\'task\')">+ Add task</button>';
+    const focus=myTasks.filter(t=>t.status!=='Done').slice(0,4);
+    host.innerHTML=`<div class="employee-focus"><section class="focus-card"><span class="role-chip">Employee workspace</span><h3 style="font-size:20px;margin-top:12px">${emp?.name||'Your'} focus queue</h3><div class="focus-sub">Work ranked by urgency so you always know what to do next.</div>${focus.length?focus.map(t=>`<div class="focus-task"><div class="focus-check">${t.status==='In Progress'?'↗':'○'}</div><div><strong>${t.title}</strong><span>${t.status} · Due ${t.due}</span></div><span class="task-priority ${PRI_CLASS[t.priority]||''}">${t.priority}</span></div>`).join(''):`<div class="empty-state"><strong>Your queue is clear</strong><span>Add a task or check the team board.</span></div>`}</section><section class="focus-card shift-card"><div><div class="shift-status"><span class="live-dot"></span>${s.clockedIn?'Shift in progress':'Ready to start your shift'}</div><div class="shift-clock">${s.clockedIn?'Active now':'—:——'}</div><div class="shift-helper">Track time from My Hub and keep your availability visible.</div></div><button class="shift-btn" onclick="showPage('my-hub')">${s.clockedIn?'View time log':'Open clock-in hub'} →</button></section></div>${settingsBar}`;
+  } else {
+    page.classList.remove('employee-mode');
+    document.getElementById('dash-eyebrow').textContent=role==='staff'?'Operations desk':'Executive command center';
+    document.getElementById('dash-description').textContent=role==='staff'?'Keep delivery moving with a clear queue of projects, follow-ups, and work due today.':'Live visibility across delivery, workforce health, and revenue momentum. Make the next decision with confidence.';
+    document.querySelector('.hero-actions').innerHTML='<button class="btn-secondary" onclick="showPage(\'analytics\')">View analytics</button><button class="add-btn" onclick="openModal(\'project\')">+ New project</button>';
+    const title=role==='staff'?'Move the operating queue forward':'Decide what needs leadership attention';
+    const sub=role==='staff'?'Focus on delivery flow, follow-ups, and the work waiting on action.':'Portfolio health, revenue exposure, and workforce signals in one place.';
+    const stats=role==='staff'?[['Open projects',s.projects.filter(p=>p.status!=='Done').length,'var(--accent)'],['Follow-ups',hot,'var(--amber)'],['Tasks today',s.tasks.filter(t=>t.due==='Today'&&t.status!=='Done').length,'var(--red)']]:[['At risk',overdue,'var(--red)'],['Hot pipeline',hot,'var(--amber)'],['Active staff',active,'var(--green)']];
+    const quick=role==='staff'?'<button class="btn-secondary" onclick="openModal(\'task\')">Create task</button><button class="btn-secondary" onclick="showPage(\'sales\')">Work leads</button>':'<button class="btn-secondary" onclick="showPage(\'projects\')">Review delivery</button><button class="btn-secondary" onclick="showPage(\'sales\')">Open pipeline</button><button class="btn-secondary" onclick="showPage(\'employees\')">Check workforce</button>';
+    host.innerHTML=`<div class="role-workspace"><section class="workspace-card"><span class="role-chip">${role==='staff'?'Staff workspace':'Admin workspace'}</span><h3 style="font-size:20px;margin-top:12px">${title}</h3><div class="workspace-subtitle">${sub}</div><div class="workspace-stats">${stats.map(x=>`<div class="workspace-stat"><span class="label">${x[0]}</span><span class="value" style="color:${x[2]}">${x[1]}</span></div>`).join('')}</div><div class="quick-row">${quick}</div></section><section class="automation-card"><div class="automation-header"><div><h3>Automation center</h3><div class="workspace-subtitle" style="margin:4px 0 0">Rules run instantly when dashboard data changes.</div></div><span class="auto-badge">LIVE</span></div><div class="queue-list">${queue}</div><div class="automation-footer"><small>${items.length} active signal${items.length===1?'':'s'}</small><button class="queue-action" onclick="showPage('audit')">View activity →</button></div></section></div>${settingsBar}`;
+  }
+}
+function renderDashboardInsights(){
+  const s = SaaS_State.get();
+  const target = document.getElementById('dashboard-insights');
+  if (!target) return;
+  const overdue = s.projects.filter(p => p.status !== 'Done' && new Date(p.deadline) < new Date()).length;
+  const hot = s.leads.filter(l => l.temp === 'Hot' && l.stage !== 'Closed Won').length;
+  const active = s.employees.filter(e => e.status === 'Active').length;
+  target.innerHTML = `
+    <div class="insight-card"><div class="insight-icon">↗</div><div><strong>${hot} hot opportunities</strong><span>Prioritize high-intent deals in the next review.</span></div></div>
+    <div class="insight-card"><div class="insight-icon">◷</div><div><strong>${overdue ? overdue + ' delivery risks' : 'Delivery on track'}</strong><span>${overdue ? 'Projects past deadline need an owner today.' : 'No active project is past its deadline.'}</span></div></div>
+    <div class="insight-card"><div class="insight-icon">✦</div><div><strong>${active} active teammates</strong><span>Workforce data is synced across departments.</span></div></div>`;
+  const updated = document.getElementById('dash-updated');
+  if (updated) updated.textContent = `Updated ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+}
+
+function recalcKPIs(target='dash-stats'){
+  const s = SaaS_State.get();
+  const totalBudget  = s.projects.reduce((a,p)=>a+p.budget,0);
+  const avgKPI       = s.employees.length ? Math.round(s.employees.reduce((a,e)=>a+e.kpi,0)/s.employees.length) : 0;
+  const pipeline     = s.leads.reduce((a,l)=>a+(l.value*l.prob/100),0);
+  const liveProjects = s.projects.filter(p=>p.status==='Live').length;
+
+  const el = document.getElementById(target);
+  if (!el) return;
+  if (target === 'dash-stats') { renderDashboardInsights(); renderRoleDashboard(); updateNotificationCount(); }
+  el.innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total Project Budget</div><div class="stat-val">₹${(totalBudget/10000000).toFixed(1)}Cr</div><div class="stat-sub">${s.projects.length} projects</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Team KPI</div><div class="stat-val">${avgKPI}</div><div class="stat-sub ${avgKPI>=80?'stat-up':'stat-down'}">${avgKPI>=80?'Above target':'Needs attention'}</div></div>
+    <div class="stat-card"><div class="stat-label">Weighted Pipeline</div><div class="stat-val">₹${(pipeline/100000).toFixed(1)}L</div><div class="stat-sub stat-up">${s.leads.length} leads</div></div>
+    <div class="stat-card"><div class="stat-label">Live Projects</div><div class="stat-val">${liveProjects}</div><div class="stat-sub">of ${s.projects.length} total</div></div>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHARTS
+═══════════════════════════════════════════════════════════════ */
+let chartDept, chartDept2, chartPipeline, chartBudget;
+let chartObsDept, chartObsRadar, chartObsPipeline, chartObsBudget;
+
+const cDef = {
+  responsive: true,
+  plugins: { legend: { labels: { color:'#8090B0', font:{ family:'DM Sans', size:11 } } } },
+  scales: {
+    x: { ticks:{ color:'#8090B0', font:{ family:'DM Sans', size:11 } }, grid:{ color:'rgba(255,255,255,0.04)' } },
+    y: { ticks:{ color:'#8090B0', font:{ family:'DM Sans', size:11 } }, grid:{ color:'rgba(255,255,255,0.04)' } }
+  }
+};
+
+function deptData(){
+  const s = SaaS_State.get();
+  const depts = [...new Set(s.employees.map(e=>e.dept))];
+  return {
+    labels: depts,
+    datasets: [{ data: depts.map(d=>{ const emps=s.employees.filter(e=>e.dept===d); return Math.round(emps.reduce((a,e)=>a+e.kpi,0)/emps.length); }),
+      backgroundColor:['rgba(14,165,233,.75)','rgba(139,92,246,.75)','rgba(16,185,129,.75)','rgba(245,158,11,.75)','rgba(239,68,68,.65)','rgba(6,182,212,.7)'],
+      borderWidth: 0 }]
+  };
+}
+
+function pipelineData(){
+  const s = SaaS_State.get();
+  const stages = ['Discovery','Qualifying','Proposal','Negotiation','Closed Won'];
+  return {
+    labels: stages,
+    datasets: [{ label:'Deal Value (₹L)', data: stages.map(st=>s.leads.filter(l=>l.stage===st).reduce((a,l)=>a+l.value/100000,0)),
+      backgroundColor:['rgba(14,165,233,.7)','rgba(139,92,246,.7)','rgba(245,158,11,.7)','rgba(16,185,129,.6)','rgba(16,185,129,.9)'], borderRadius:6 }]
+  };
+}
+
+function budgetData(){
+  const s = SaaS_State.get();
+  return {
+    labels: s.projects.map(p=>p.name.split(' ').slice(0,2).join(' ')),
+    datasets: [{ label:'Budget (₹L)', data: s.projects.map(p=>p.budget/100000),
+      backgroundColor: s.projects.map(p=>({'Planning':'rgba(245,158,11,.7)','Live':'rgba(14,165,233,.7)','Done':'rgba(16,185,129,.7)'}[p.status]||'rgba(255,255,255,.2)')),
+      borderRadius: 6 }]
+  };
+}
+
+function renderFunnel(containerId){
+  const s = SaaS_State.get();
+  const stages = ['Discovery','Qualifying','Proposal','Negotiation','Closed Won'];
+  const colors = ['rgba(14,165,233,.75)','rgba(139,92,246,.75)','rgba(245,158,11,.75)','rgba(16,185,129,.65)','rgba(16,185,129,.9)'];
+  const vals   = stages.map(st => s.leads.filter(l=>l.stage===st).reduce((a,l)=>a+l.value,0));
+  const maxVal = Math.max(...vals, 1);
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = stages.map((st,i) => {
+    const pct = Math.max((vals[i]/maxVal)*100, 5);
+    return `
+      <div class="funnel-stage">
+        <span class="funnel-label">${st}</span>
+        <div class="funnel-bar-wrap">
+          <div class="funnel-bar" style="width:${pct}%;background:${colors[i]}">
+            ${vals[i]>0?'₹'+(vals[i]/100000).toFixed(0)+'L':'—'}
+          </div>
+        </div>
+        <span class="funnel-count">${s.leads.filter(l=>l.stage===st).length} leads</span>
+      </div>`;
+  }).join('');
+}
+
+function renderDashCharts(){
+  if (chartDept) chartDept.destroy();
+  chartDept = new Chart(document.getElementById('chart-dept'), {
+    type: 'doughnut', data: deptData(),
+    options: { responsive:true, cutout:'58%', plugins:{ legend:{ position:'right', labels:{ color:'#8090B0', font:{ family:'DM Sans' } } } } }
+  });
+  renderFunnel('funnel-chart');
+}
+
+function renderAnalyticsCharts(){
+  if (chartDept2)    chartDept2.destroy();
+  if (chartPipeline) chartPipeline.destroy();
+  if (chartBudget)   chartBudget.destroy();
+
+  chartDept2 = new Chart(document.getElementById('chart-dept2'), {
+    type: 'doughnut', data: deptData(),
+    options: { responsive:true, cutout:'58%', plugins:{ legend:{ position:'right', labels:{ color:'#8090B0', font:{ family:'DM Sans' } } } } }
+  });
+  chartPipeline = new Chart(document.getElementById('chart-pipeline'), {
+    type: 'bar', data: pipelineData(), options: { ...cDef, plugins:{ legend:{ display:false } } }
+  });
+  chartBudget = new Chart(document.getElementById('chart-budget'), {
+    type: 'bar', data: budgetData(), options: { ...cDef, plugins:{ legend:{ display:false } } }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OBSERVER SHOWCASE — all features on one page
+═══════════════════════════════════════════════════════════════ */
+function renderObserverPage(){
+  recalcKPIs('obs-stats');
+  renderFunnel('obs-funnel');
+
+  /* Radar for observer */
+  if (chartObsDept)  chartObsDept.destroy();
+  if (chartObsRadar) chartObsRadar.destroy();
+  if (chartObsPipeline) chartObsPipeline.destroy();
+  if (chartObsBudget)   chartObsBudget.destroy();
+
+  chartObsDept = new Chart(document.getElementById('obs-chart-dept'), {
+    type: 'doughnut', data: deptData(),
+    options: { responsive:true, cutout:'58%', plugins:{ legend:{ position:'right', labels:{ color:'#8090B0', font:{ family:'DM Sans' } } } } }
+  });
+
+  const s   = SaaS_State.get();
+  const emp = s.employees.find(e=>e.id===1) || s.employees[0];
+  chartObsRadar = new Chart(document.getElementById('obs-chart-radar'), {
+    type: 'radar',
+    data: {
+      labels: ['Output','Accuracy','Communication','Punctuality','Collaboration'],
+      datasets: [{ label: emp.name, data: Object.values(emp.skills), backgroundColor:'rgba(14,165,233,.15)', borderColor:'rgba(14,165,233,.9)', borderWidth:2, pointBackgroundColor:'var(--accent)', pointRadius:4 }]
+    },
+    options: {
+      responsive:true,
+      plugins:{ legend:{ display:false } },
+      scales:{ r:{ min:0, max:100, ticks:{ display:false }, grid:{ color:'rgba(255,255,255,.08)' }, angleLines:{ color:'rgba(255,255,255,.08)' }, pointLabels:{ color:'#8090B0', font:{ family:'DM Sans', size:11 } } } }
+    }
+  });
+
+  chartObsPipeline = new Chart(document.getElementById('obs-chart-pipeline'), {
+    type:'bar', data:pipelineData(), options:{ ...cDef, plugins:{ legend:{ display:false } } }
+  });
+  chartObsBudget = new Chart(document.getElementById('obs-chart-budget'), {
+    type:'bar', data:budgetData(), options:{ ...cDef, plugins:{ legend:{ display:false } } }
+  });
+
+  /* Perf strip */
+  document.getElementById('obs-perf-strip').innerHTML = `
+    <div class="perf-card"><div class="perf-label">KPI Score</div><div class="perf-val" style="color:var(--green)">${emp.kpi}</div></div>
+    <div class="perf-card"><div class="perf-label">Tasks Done</div><div class="perf-val">${s.tasks.filter(t=>t.assignee===emp.name&&t.status==='Done').length}</div></div>
+    <div class="perf-card"><div class="perf-label">In Progress</div><div class="perf-val" style="color:var(--accent)">${s.tasks.filter(t=>t.assignee===emp.name&&t.status==='In Progress').length}</div></div>
+    <div class="perf-card"><div class="perf-label">Department</div><div class="perf-val" style="font-size:16px">${emp.dept}</div></div>
+  `;
+
+  /* Mini kanban */
+  renderKanban(document.getElementById('obs-kanban-mini'), emp.name);
+
+  /* Leads table */
+  document.getElementById('obs-leads-tbody').innerHTML = s.leads.map(l=>`
+    <tr>
+      <td><strong>${l.name}</strong></td>
+      <td>₹${(l.value/100000).toFixed(1)}L</td>
+      <td><span class="badge ${STAGE_BADGE[l.stage]||'badge-gray'}">${l.stage}</span></td>
+      <td>${l.prob}%</td>
+      <td style="color:var(--green)">₹${((l.value*l.prob/100)/100000).toFixed(1)}L</td>
+    </tr>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CRUD — delete recalculates all KPIs & charts instantly
+═══════════════════════════════════════════════════════════════ */
+let _pendingDelete=null, _lastDeleted=null;
+function deleteEntry(collection, id){
+  const action = collection==='leads'?'lead':collection==='projects'?'project':collection==='employees'?'employee':'task';
+  if (!can(action)) { showToast('Your role cannot delete from this area.','error'); return; }
+  const item = SaaS_State.get()[collection].find(x=>x.id===id);
+  _pendingDelete={collection,id,item};
+  openAppDialog('Delete record?',`This will remove <b>${item?.name||item?.title||'this record'}</b>. You can undo it from the next notification.`,'Delete',commitDelete);
+}
+function undoDelete(){if(!_lastDeleted)return;const {collection,item}=_lastDeleted,s=SaaS_State.get();if(s[collection].some(x=>x.id===item.id))return;SaaS_State.set({[collection]:[...s[collection],item]});SaaS_State.log('RESTORE',`${collection}: ${item.name||item.title||item.id}`);renderTable(collection==='tasks'?SaaS_State.get().currentPage:collection);recalcKPIs();_lastDeleted=null;showToast('Record restored.','success');}
+function commitDelete(){
+  if(!_pendingDelete)return;const {collection,id,item}=_pendingDelete,s=SaaS_State.get();
+  SaaS_State.set({[collection]:s[collection].filter(x=>x.id!==id)});
+  _lastDeleted={collection,item};
+  SaaS_State.log('DELETE',`${collection}: ${item?.name||item?.title||id}`);
+  renderTable(collection === 'tasks' ? SaaS_State.get().currentPage : collection);
+  recalcKPIs();
+
+  /* Immediately update charts that are mounted */
+  if (chartDept)     { chartDept.data     = deptData();     chartDept.update(); }
+  if (chartDept2)    { chartDept2.data    = deptData();     chartDept2.update(); }
+  if (chartPipeline) { chartPipeline.data = pipelineData(); chartPipeline.update(); }
+  if (chartBudget)   { chartBudget.data   = budgetData();   chartBudget.update(); }
+  renderFunnel('funnel-chart');
+  if (collection === 'tasks') renderKanban();
+
+  renderAudit();
+  showToast(`${item?.name||item?.title||'Entry'} deleted. <button class=\"queue-action\" onclick=\"undoDelete()\">Undo</button>`, 'info');
+  _pendingDelete=null;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   POLYMORPHIC MODAL — fields auto-generated per active tab
+═══════════════════════════════════════════════════════════════ */
+let _modalCtx=null, _editId=null;
+
+const modalForms = {
+  project: (d={}) => `
+    <div class="form-group"><label>Project Name</label><input id="mf-name" value="${d.name||''}"/></div>
+    <div class="form-group"><label>Client</label><input id="mf-client" value="${d.client||''}" placeholder="Company name"/></div>
+    <div class="form-group"><label>Team</label><input id="mf-team" value="${d.team||''}" placeholder="Frontend Squad"/></div>
+    <div class="form-group"><label>Budget (₹)</label><input id="mf-budget" type="number" value="${d.budget||''}"/></div>
+    <div class="form-group"><label>Deadline</label><input id="mf-deadline" type="date" value="${d.deadline||''}"/></div>
+    <div class="form-group"><label>Status</label><select id="mf-status">
+      <option ${d.status==='Planning'?'selected':''}>Planning</option>
+      <option ${d.status==='Live'?'selected':''}>Live</option>
+      <option ${d.status==='Done'?'selected':''}>Done</option>
+    </select></div>`,
+
+  employee: (d={}) => `
+    <div class="form-group"><label>Name</label><input id="mf-name" value="${d.name||''}" placeholder="Full name"/></div>
+    <div class="form-group"><label>Department</label><input id="mf-dept" value="${d.dept||''}" placeholder="Engineering"/></div>
+    <div class="form-group"><label>Role</label><input id="mf-role" value="${d.role||''}" placeholder="Senior Dev"/></div>
+    <div class="form-group"><label>KPI Score (0–100)</label><input id="mf-kpi" type="number" min="0" max="100" value="${d.kpi||0}"/></div>
+    <div class="form-group"><label>Status</label><select id="mf-status">
+      <option ${d.status==='Active'?'selected':''}>Active</option>
+      <option ${d.status==='On Leave'?'selected':''}>On Leave</option>
+    </select></div>`,
+
+  lead: (d={}) => `
+    <div class="form-group"><label>Lead Name</label><input id="mf-name" value="${d.name||''}" placeholder="Company — Project"/></div>
+    <div class="form-group"><label>Deal Value (₹)</label><input id="mf-val" type="number" value="${d.value||''}"/></div>
+    <div class="form-group"><label>Pipeline Stage</label><select id="mf-stage">
+      ${['Discovery','Qualifying','Proposal','Negotiation','Closed Won','Closed Lost'].map(s=>`<option ${d.stage===s?'selected':''}>${s}</option>`).join('')}
+    </select></div>
+    <div class="form-group"><label>Win Probability (%)</label><input id="mf-prob" type="number" min="0" max="100" value="${d.prob||0}"/></div>
+    <div class="form-group"><label>Temperature</label><select id="mf-temp">
+      ${['Hot','Warm','Cold'].map(t=>`<option ${d.temp===t?'selected':''}>${t}</option>`).join('')}
+    </select></div>`,
+
+  /* Task modal — shown when on My Tasks tab */
+  task: (d={}) => `
+    <div class="form-group"><label>Task Title</label><input id="mf-name" value="${d.title||''}" placeholder="Describe the task"/></div>
+    <div class="form-group"><label>Assignee</label><select id="mf-assignee">
+      ${SaaS_State.get().employees.map(e=>`<option ${d.assignee===e.name?'selected':''}>${e.name}</option>`).join('')}
+    </select></div>
+    <div class="form-group"><label>Priority</label><select id="mf-priority">
+      ${['High','Medium','Low'].map(p=>`<option ${d.priority===p?'selected':''}>${p}</option>`).join('')}
+    </select></div>
+    <div class="form-group"><label>Status</label><select id="mf-taskstatus">
+      ${['To Do','In Progress','Done'].map(st=>`<option ${d.status===st?'selected':''}>${st}</option>`).join('')}
+    </select></div>
+    <div class="form-group"><label>Due</label><input id="mf-due" value="${d.due||''}" placeholder="Today / Tomorrow / Friday"/></div>`,
+};
+
+function openModal(type, id=null){
+  if (!can(type)) { showToast('Your role cannot edit this area.','error'); return; }
+  _modalCtx = type;
+  _editId   = id;
+  const collMap = { project:'projects', employee:'employees', lead:'leads', task:'tasks' };
+  const s   = SaaS_State.get();
+  const data = id !== null ? (s[collMap[type]]||[]).find(x=>x.id===id) || {} : {};
+  document.getElementById('modal-title').textContent = (id?'Edit ':'Add ') + type.charAt(0).toUpperCase() + type.slice(1);
+  document.getElementById('modal-body').innerHTML    = modalForms[type](data);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal()         { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModalOutside(e) { if (e.target===document.getElementById('modal-overlay')) closeModal(); }
+
+function saveModal(){
+  const s      = SaaS_State.get();
+  const isEdit = _editId !== null;
+  let obj, coll;
+
+  if (_modalCtx === 'project'){
+    coll = 'projects';
+    obj  = { id:isEdit?_editId:uid(), name:document.getElementById('mf-name').value, client:document.getElementById('mf-client').value, team:document.getElementById('mf-team').value, budget:parseInt(document.getElementById('mf-budget').value)||0, deadline:document.getElementById('mf-deadline').value, status:document.getElementById('mf-status').value };
+  } else if (_modalCtx === 'employee'){
+    coll = 'employees';
+    const existing = isEdit ? s.employees.find(x=>x.id===_editId) : null;
+    obj  = { id:isEdit?_editId:uid(), name:document.getElementById('mf-name').value, dept:document.getElementById('mf-dept').value, role:document.getElementById('mf-role').value, kpi:parseInt(document.getElementById('mf-kpi').value)||0, status:document.getElementById('mf-status').value, skills:existing?.skills||{output:75,accuracy:75,communication:75,punctuality:75,collaboration:75} };
+  } else if (_modalCtx === 'lead'){
+    coll = 'leads';
+    obj  = { id:isEdit?_editId:uid(), name:document.getElementById('mf-name').value, value:parseInt(document.getElementById('mf-val').value)||0, stage:document.getElementById('mf-stage').value, prob:parseInt(document.getElementById('mf-prob').value)||0, temp:document.getElementById('mf-temp').value };
+  } else {
+    coll = 'tasks';
+    obj  = { id:isEdit?_editId:uid(), title:document.getElementById('mf-name').value, assignee:document.getElementById('mf-assignee').value, priority:document.getElementById('mf-priority').value, status:document.getElementById('mf-taskstatus').value, due:document.getElementById('mf-due').value };
+  }
+
+  const list = isEdit ? s[coll].map(x=>x.id===_editId?obj:x) : [...s[coll], obj];
+  SaaS_State.set({ [coll]: list });
+  SaaS_State.log(isEdit?'EDIT':'ADD', `${_modalCtx}: ${obj.name||obj.title||obj.id}`);
+
+  /* Recalculate charts */
+  if (chartDept)     { chartDept.data     = deptData();     chartDept.update(); }
+  if (chartPipeline) { chartPipeline.data = pipelineData(); chartPipeline.update(); }
+  if (chartBudget)   { chartBudget.data   = budgetData();   chartBudget.update(); }
+  renderFunnel('funnel-chart');
+
+  if (_modalCtx === 'task') renderKanban();
+  else renderTable(coll);
+  recalcKPIs();
+  renderAudit();
+  closeModal();
+  showToast(`${obj.name||obj.title||'Entry'} ${isEdit?'updated':'added'}.`, 'success');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GLOBAL SEARCH
+═══════════════════════════════════════════════════════════════ */
+function globalSearch(q){
+  const resultsEl = document.getElementById('search-results');
+  if (!q || q.length < 2){ resultsEl.classList.remove('open'); return; }
+  const s   = SaaS_State.get();
+  const lq  = q.toLowerCase();
+  const hits = [];
+  s.projects.forEach(p=>{ if(p.name.toLowerCase().includes(lq)||p.client.toLowerCase().includes(lq)) hits.push({ label:p.name, sub:'Project · '+p.client, tab:'projects' }); });
+  s.employees.forEach(e=>{ if(e.name.toLowerCase().includes(lq)||e.dept.toLowerCase().includes(lq)) hits.push({ label:e.name, sub:'Employee · '+e.dept, tab:'employees' }); });
+  s.leads.forEach(l=>{ if(l.name.toLowerCase().includes(lq)) hits.push({ label:l.name, sub:'Lead · '+l.stage, tab:'sales' }); });
+  s.tasks.forEach(t=>{ if(t.title.toLowerCase().includes(lq)) hits.push({ label:t.title, sub:'Task · '+t.assignee, tab:'my-tasks' }); });
+
+  resultsEl.innerHTML = hits.length
+    ? hits.slice(0,7).map(h=>`<div class="search-hit" onclick="goSearchResult(${JSON.stringify(h.tab)},${JSON.stringify(h.label)})"><div>${hl(h.label,q)}</div><div class="search-category">${h.sub}</div></div>`).join('')
+    : `<div class="search-hit" style="color:var(--text3)">No results for "${q}"</div>`;
+  resultsEl.classList.add('open');
+}
+
+function goSearchResult(tab, label){ document.getElementById('global-search').value=''; closeSearch(); showPage(tab); setTimeout(()=>filterTable(tab,label),600); }
+function closeSearch(){ document.getElementById('search-results').classList.remove('open'); }
+
+/* ═══════════════════════════════════════════════════════════════
+   ADD-INS, AUDIT, WHITE-LABEL
+═══════════════════════════════════════════════════════════════ */
+function toggleAddon(key, el){
+  el.classList.toggle('on');
+  const s = SaaS_State.get();
+  s.addins[key] = el.classList.contains('on');
+  SaaS_State.set({ addins: s.addins });
+  SaaS_State.log('ADDON', `${key} → ${s.addins[key]?'enabled':'disabled'}`);
+  renderAudit();
+}
+
+function renderAudit(){
+  const s  = SaaS_State.get();
+  const el = document.getElementById('audit-container');
+  if (!el) return;
+  if (!s.addins.audit){ el.innerHTML='<div style="padding:16px;color:var(--text3)">Enable Audit Logs add-in to view.</div>'; return; }
+  const entries = SaaS_State.getAudit();
+  el.innerHTML = entries.length
+    ? entries.map(e=>`<div class="audit-entry"><span class="audit-time">${e.time}</span><span class="audit-action">[${e.action}]</span><span>${e.detail}</span></div>`).join('')
+    : '<div style="padding:16px;color:var(--text3)">No activity yet.</div>';
+}
+
+function applyWL(){
+  const name = document.getElementById('wl-name')?.value || 'Corp·Nexus';
+  const tag  = document.getElementById('wl-tag')?.value  || 'Diamond Edition';
+  document.getElementById('brand-logo').innerHTML = name.replace('·','<span>·</span>');
+  document.getElementById('brand-tag').textContent = tag;
+  document.title = name;
+  const s=SaaS_State.get(); SaaS_State.set({templateConfig:{...(s.templateConfig||{}),name,tag}});
+}
+
+
+function setAccent(hex, rgb, el){
+  document.documentElement.style.setProperty('--accent',     hex);
+  document.documentElement.style.setProperty('--accent-rgb', rgb);
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+  /* Redraw radar with new accent */
+  if (_radarChart) { _radarChart.data.datasets[0].borderColor = hex+`E6`; _radarChart.update(); }
+  showToast('Theme updated globally!', 'success');
+  SaaS_State.log('THEME', `Accent → ${hex}`);
+}
+
+let _dialogAction=null;
+function openAppDialog(title,copy,confirmText,action){document.getElementById('dialog-title').textContent=title;document.getElementById('dialog-copy').innerHTML=copy;document.getElementById('dialog-confirm').textContent=confirmText;document.getElementById('dialog-error').classList.remove('show');document.getElementById('dialog-error').textContent='';_dialogAction=action;document.getElementById('app-dialog').classList.add('open');}
+function confirmAppDialog(){if(_dialogAction && _dialogAction()!==false)closeAppDialog();}
+function closeAppDialog(){document.getElementById('app-dialog').classList.remove('open');_dialogAction=null;}
+function closeDialogOutside(e){if(e.target.id==='app-dialog')closeAppDialog();}
+function showDialogError(msg){const el=document.getElementById('dialog-error');el.textContent=msg;el.classList.add('show');}
+function dismissWelcomeOverlays(){document.getElementById('landing-overlay')?.classList.remove('open');document.getElementById('onboarding-overlay')?.classList.remove('open');document.getElementById('command-panel')?.classList.remove('open');document.getElementById('notification-panel')?.classList.remove('open');document.getElementById('help-panel')?.classList.remove('open');document.getElementById('library-panel')?.classList.remove('open');}
+function openHelp(){dismissWelcomeOverlays();document.getElementById('help-panel').classList.add('open');}
+function closeHelp(){document.getElementById('help-panel').classList.remove('open');}
+function closeHelpOutside(e){if(e.target.id==='help-panel')closeHelp();}
+const DataAdapter={loadProjects:()=>SaaS_State.get().projects,loadEmployees:()=>SaaS_State.get().employees,loadLeads:()=>SaaS_State.get().leads,createProject:p=>SaaS_State.set({projects:[...SaaS_State.get().projects,p]}),updateProject:p=>SaaS_State.set({projects:SaaS_State.get().projects.map(x=>x.id===p.id?p:x)}),deleteProject:id=>SaaS_State.set({projects:SaaS_State.get().projects.filter(x=>x.id!==id)}),sendNotification:n=>showToast(n.message||'Notification sent.','info'),runAutomation:(rule,context)=>({rule,context,ranAt:new Date().toISOString()})};
+function updateDeepLink(){const s=SaaS_State.get(),url=new URL(location.href);url.searchParams.set('role',s.role);url.searchParams.set('page',s.currentPage);history.replaceState({},'',url);}
+
+/* ═══════════════════════════════════════════════════════════════
+   MARKETPLACE DATA + PERMISSIONS
+═══════════════════════════════════════════════════════════════ */
+function can(action){const s=SaaS_State.get(), role=s.role; const map={project:'projects',employee:'employees',lead:'sales',task:'tasks'}; return s.permissions?.[map[action]]?.[role]!==false;}
+function renderPermissionMatrix(){const el=document.getElementById('permission-body');if(!el)return;const s=SaaS_State.get(), rows=[['projects','Manage projects'],['employees','Manage employees'],['sales','Manage sales leads'],['tasks','Manage tasks']];el.innerHTML=rows.map(r=>`<tr><td>${r[1]}</td>${['admin','staff','employee','observer'].map(role=>`<td><input type="checkbox" ${s.permissions?.[r[0]]?.[role]?'checked':''} ${role==='observer'?'disabled':''} onchange="togglePermission('${r[0]}','${role}')"></td>`).join('')}</tr>`).join('');}
+function togglePermission(area,role){const s=SaaS_State.get(), permissions=JSON.parse(JSON.stringify(s.permissions||{}));permissions[area][role]=!permissions[area][role];SaaS_State.set({permissions});renderPermissionMatrix();showToast('Permission matrix updated.','info');}
+function csvRows(collection){const s=SaaS_State.get();return s[collection]||[];}
+function exportCSV(collection){const rows=csvRows(collection);if(!rows.length){showToast('Nothing to export yet.','warning');return;}const keys=Object.keys(rows[0]).filter(k=>typeof rows[0][k]!=='object');const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;const csv=[keys.join(','),...rows.map(r=>keys.map(k=>esc(r[k])).join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`corp-nexus-${collection}.csv`;a.click();URL.revokeObjectURL(a.href);showToast(`${rows.length} ${collection} exported.`,'success');}
+function parseCSVLine(line){const values=[];let value='',quoted=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='\"' && line[i+1]==='\"' && quoted){value+='\"';i++;continue;}if(ch==='\"'){quoted=!quoted;continue;}if(ch===',' && !quoted){values.push(value.trim());value='';continue;}value+=ch;}values.push(value.trim());return values;}
+function importCSV(collection){const input=document.createElement('input');input.type='file';input.accept='.csv,text/csv';input.onchange=()=>{const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{const lines=reader.result.split(/\r?\n/).filter(Boolean);if(lines.length<2){showToast('CSV needs a header and at least one row.','error');return;}const headers=parseCSVLine(lines[0]).map(h=>h.trim());const required={projects:['name','client','budget'],employees:['name','dept','kpi'],leads:['name','value','stage']}[collection]||[];const missing=required.filter(h=>!headers.includes(h));const parsed=lines.slice(1).map(line=>{const vals=parseCSVLine(line),obj={id:uid()};headers.forEach((h,i)=>obj[h]=vals[i]||'');if(collection==='projects')obj.budget=Number(obj.budget)||0;if(collection==='employees')obj.kpi=Number(obj.kpi)||0;if(collection==='leads'){obj.value=Number(obj.value)||0;obj.prob=Number(obj.prob)||0;}return obj;});const preview=parsed.slice(0,3).map(r=>`<tr>${headers.slice(0,5).map(h=>`<td>${r[h]||'—'}</td>`).join('')}</tr>`).join('');const warning=missing.length?`<div class="dialog-error show">Missing recommended columns: ${missing.join(', ')}</div>`:'';openAppDialog('Preview import',`Reviewing <b>${parsed.length} rows</b> for ${collection}.${warning}<div class="csv-preview"><table><thead><tr>${headers.slice(0,5).map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${preview}</tbody></table></div>`,'Import',()=>{if(missing.length){showDialogError(`Add the required columns before importing: ${missing.join(', ')}`);return false;}const current=SaaS_State.get();SaaS_State.set({[collection]:[...current[collection],...parsed]});renderTable(collection);recalcKPIs();showToast(`${parsed.length} rows imported.`,'success');});};reader.readAsText(file);};input.click();}
+function saveCurrentView(collection){openAppDialog('Save view','Give this filtered view a name.','Save',()=>{const name=document.getElementById('dialog-input')?.value.trim();if(!name){showDialogError('A view name is required.');return false;}const s=SaaS_State.get(),views={...(s.savedViews||{})};views[collection]=[...(views[collection]||[]),{name,query:_searchTerms[collection]||''}];SaaS_State.set({savedViews:views});renderSavedViews();showToast('Saved view created.','success');});document.getElementById('dialog-content').innerHTML='<input class="dialog-input" id="dialog-input" placeholder="e.g. Overdue projects" autofocus>';}
+function renderSavedViews(){const s=SaaS_State.get();['projects','employees','leads'].forEach(c=>{const el=document.getElementById(`${c}-view`);if(!el)return;el.innerHTML='<option value="">Saved views</option>'+(s.savedViews?.[c]||[]).map((v,i)=>`<option value="${i}">${v.name}</option>`).join('');});}
+function applySavedView(collection,index){if(index==='')return;const v=SaaS_State.get().savedViews?.[collection]?.[Number(index)];if(!v)return;const input=document.querySelector(`#page-${collection==='leads'?'sales':collection} .filter-input`);if(input)input.value=v.query||'';filterTable(collection,v.query||'');}
+
+let authMode='signin';
+function openAuth(mode='signin'){dismissWelcomeOverlays();authMode=mode;setAuthMode(mode);document.getElementById('auth-overlay').classList.add('open');setTimeout(()=>document.getElementById('auth-email')?.focus(),30);}
+function closeAuth(){document.getElementById('auth-overlay')?.classList.remove('open');}
+function closeAuthOutside(e){if(e.target.id==='auth-overlay')closeAuth();}
+function setAuthMode(mode){authMode=mode;const signup=mode==='signup';document.getElementById('auth-title').textContent=signup?'Create your workspace':'Welcome back';document.getElementById('auth-copy').textContent=signup?'Set up a polished operations workspace in under a minute.':'Sign in to continue to your role-aware operations workspace.';document.getElementById('auth-name-wrap').style.display=signup?'grid':'none';document.getElementById('auth-submit').textContent=signup?'Create account →':'Sign in →';document.getElementById('auth-signin-tab').classList.toggle('active',!signup);document.getElementById('auth-signup-tab').classList.toggle('active',signup);document.getElementById('auth-error').classList.remove('show');}
+function toggleAuthPassword(){const input=document.getElementById('auth-password'),button=input.nextElementSibling;input.type=input.type==='password'?'text':'password';button.textContent=input.type==='password'?'Show':'Hide';}
+function demoAuth(role){document.getElementById('auth-email').value=`${role}@demo.corpnexus`;document.getElementById('auth-password').value='demo1234';setRole(role);closeAuth();closeLanding();if(!localStorage.getItem('corp-nexus-onboarded'))openOnboarding();showToast(`${role[0].toUpperCase()+role.slice(1)} demo workspace opened.`,'success');}
+function submitAuth(e){e.preventDefault();const email=document.getElementById('auth-email').value.trim(),password=document.getElementById('auth-password').value,name=document.getElementById('auth-name').value.trim(),err=document.getElementById('auth-error');if(password.length<6){err.textContent='Use at least 6 characters for the demo password.';err.classList.add('show');return;}if(authMode==='signup'&&!name){err.textContent='Enter your name to create the workspace.';err.classList.add('show');return;}localStorage.setItem('corp-nexus-auth',JSON.stringify({email,name:name||email.split('@')[0],remember:document.getElementById('auth-remember').checked}));closeAuth();closeLanding();if(!localStorage.getItem('corp-nexus-onboarded'))openOnboarding();else showToast(authMode==='signup'?'Workspace account created.':'Signed in successfully.','success');}
+function launchDemo(){closeLanding();if(!localStorage.getItem('corp-nexus-onboarded'))setTimeout(()=>openOnboarding(),180);showToast('Interactive demo launched.','success');}
+function closeLanding(){document.getElementById('landing-overlay')?.classList.remove('open');localStorage.setItem('corp-nexus-landing','1');}
+
+function applyTemplatePreset(key){applyPreset(key);showPage('dashboard');showToast(`${PRESETS[key]?.tag||'Template'} starter kit is ready.`,'success');}
+function togglePresentationMode(){document.body.classList.toggle('presentation-mode');const active=document.body.classList.contains('presentation-mode');localStorage.setItem('corp-nexus-presentation',active?'1':'0');showToast(active?'Presentation mode enabled.':'Presentation mode disabled.','info');}
+function loadPresentationMode(){if(localStorage.getItem('corp-nexus-presentation')==='1')document.body.classList.add('presentation-mode');}
+
+function generateWorkspace(){const industry=document.getElementById('generator-industry').value,size=document.getElementById('generator-size').value,workflow=document.getElementById('generator-workflow').value,role=document.getElementById('generator-role').value;applyPreset(industry);setRole(role);showPage('wl');const result=document.getElementById('generator-result');result.innerHTML=`Generated a <b>${size}</b> ${industry} workspace optimized for <b>${workflow}</b>. The ${role} view is ready with starter branding, role access, automation signals, and sample data.`;showToast('Workspace generated successfully.','success');}
+function saveAutomationRule(){const rule={trigger:document.getElementById('rule-trigger').value,condition:document.getElementById('rule-condition').value,action:document.getElementById('rule-action').value};const s=SaaS_State.get(),rules=[...(s.customRules||[]),rule];SaaS_State.set({customRules:rules});renderAutomationRules();showToast('Automation rule added.','success');}
+function renderAutomationRules(){const el=document.getElementById('rule-list');if(!el)return;const rules=SaaS_State.get().customRules||[];el.innerHTML=rules.length?rules.map((r,i)=>`<div class="rule-row"><b>When</b><span>${r.trigger}</span><b>if</b><span>${r.condition}</span><b>then</b><span>${r.action}</span><button class="tool-btn" onclick="removeAutomationRule(${i})">×</button></div>`).join(''):'<div style="color:var(--text3);font-size:11px">No custom rules yet. Add one above.</div>';}
+function removeAutomationRule(index){const s=SaaS_State.get();SaaS_State.set({customRules:(s.customRules||[]).filter((_,i)=>i!==index)});renderAutomationRules();}
+function generateDemoData(scale){const s=SaaS_State.get(),count=scale==='small'?2:scale==='growing'?5:10;const projects=[...s.projects],employees=[...s.employees],leads=[...s.leads];for(let i=0;i<count;i++){const n=i+1;projects.push({id:uid(),name:`${scale[0].toUpperCase()+scale.slice(1)} Initiative ${n}`,client:['Northstar','Atlas','Vertex'][i%3],status:['Live','Review','Planning'][i%3],budget:450000+n*28000,deadline:'2026-10-'+String(10+n).padStart(2,'0'),owner:'Demo team'});employees.push({id:uid(),name:`Demo Teammate ${n}`,email:`demo${n}@example.com`,dept:['Engineering','Design','Growth'][i%3],role:'Specialist',kpi:72+(i%5)*5,status:'Active'});leads.push({id:uid(),name:`Demo Opportunity ${n}`,company:['Acme','Orbit','Helix'][i%3],value:180000+n*25000,stage:['Discovery','Proposal','Negotiation'][i%3],prob:35+(i%4)*15,temp:i%2?'Warm':'Hot'});}SaaS_State.set({projects,employees,leads});renderTable('projects');recalcKPIs();renderAutomationRules();showToast(`${count} demo records added to each collection.`,'success');}
+function toggleAccessibility(key){document.body.classList.toggle(key);const active=document.body.classList.contains(key);localStorage.setItem(`corp-nexus-${key}`,active?'1':'0');showToast(`${key==='high-contrast'?'High contrast':'Reduced motion'} ${active?'enabled':'disabled'}.`,'info');}
+function loadAccessibility(){['high-contrast','reduced-motion'].forEach(key=>{if(localStorage.getItem(`corp-nexus-${key}`)==='1')document.body.classList.add(key);});}
+function openComponentLibrary(){dismissWelcomeOverlays();document.getElementById('library-panel').classList.add('open');}
+function closeComponentLibrary(){document.getElementById('library-panel').classList.remove('open');}
+function closeComponentLibraryOutside(e){if(e.target.id==='library-panel')closeComponentLibrary();}
+
+/* ═══════════════════════════════════════════════════════════════
+   PRODUCT TEMPLATE FEATURES
+═══════════════════════════════════════════════════════════════ */
+let onboardingStep=1;
+const PRESETS={agency:{name:'Studio·Nexus',tag:'Agency OS',accent:'#0EA5E9',rgb:'14,165,233'},sales:{name:'Revenue·Nexus',tag:'Sales Command',accent:'#8B5CF6',rgb:'139,92,246'},people:{name:'People·Nexus',tag:'People Hub',accent:'#10B981',rgb:'16,185,129'},consulting:{name:'Engage·Nexus',tag:'Consulting OS',accent:'#F59E0B',rgb:'245,158,11'},creative:{name:'Canvas·Nexus',tag:'Creative Studio',accent:'#EC4899',rgb:'236,72,153'},saas:{name:'Cloud·Nexus',tag:'SaaS Operations',accent:'#06B6D4',rgb:'6,182,212'}};
+function applyPreset(key){
+  const preset=PRESETS[key]||PRESETS.agency, s=SaaS_State.get();
+  SaaS_State.set({templateConfig:{...(s.templateConfig||{}),preset:key,name:preset.name,tag:preset.tag}});
+  document.getElementById('wl-name').value=preset.name; document.getElementById('wl-tag').value=preset.tag;
+  setAccent(preset.accent,preset.rgb,document.querySelector(`.swatch[style*="${preset.accent}"]`)||document.querySelector('.swatch'));
+  applyWL(); renderRoleDashboard(); showToast(`${preset.tag} preset applied.`,'success');
+}
+function saveBuilderConfig(){
+  const s=SaaS_State.get(), c={...(s.templateConfig||{}),analytics:document.getElementById('builder-analytics')?.checked!==false,audit:document.getElementById('builder-audit')?.checked!==false,density:document.getElementById('builder-density')?.value||'comfortable',theme:document.getElementById('builder-theme')?.value||'dark'};
+  SaaS_State.set({templateConfig:c}); document.body.classList.toggle('compact-mode',c.density==='compact'); document.body.classList.toggle('light-mode',c.theme==='light');
+  showToast('Template settings saved.','success');
+}
+function loadBuilderConfig(){ const c=SaaS_State.get().templateConfig||{}; const a=document.getElementById('builder-analytics'),b=document.getElementById('builder-audit'),d=document.getElementById('builder-density'),t=document.getElementById('builder-theme'); if(a)a.checked=c.analytics!==false; if(b)b.checked=c.audit!==false; if(d)d.value=c.density||'comfortable'; if(t)t.value=c.theme||'dark'; document.body.classList.toggle('compact-mode',c.density==='compact'); document.body.classList.toggle('light-mode',c.theme==='light'); }
+function openOnboarding(replay=false){ if(replay) onboardingStep=1; document.getElementById('onboarding-overlay').classList.add('open'); renderOnboardingStep(); }
+function finishOnboarding(){ document.getElementById('onboarding-overlay').classList.remove('open'); localStorage.setItem('corp-nexus-onboarded','1'); }
+function selectOnboardingPreset(key){ applyPreset(key); changeOnboarding(1); }
+function renderOnboardingStep(){ for(let i=1;i<=3;i++){document.getElementById(`onboard-step-${i}`)?.classList.toggle('active',i===onboardingStep);document.getElementById(`onboard-dot-${i}`)?.classList.toggle('active',i<=onboardingStep);} document.getElementById('onboard-step-label').textContent=`Step ${onboardingStep} of 3`; document.getElementById('onboard-back').style.display=onboardingStep>1?'inline-flex':'none'; document.getElementById('onboard-next').textContent=onboardingStep===3?'Enter workspace':'Continue'; }
+function changeOnboarding(delta){ if(delta>0 && onboardingStep===3) return finishOnboarding(); if(delta>0 && onboardingStep===2){const name=document.getElementById('onboard-name').value.trim();const tag=document.getElementById('onboard-tag').value.trim();if(name){document.getElementById('wl-name').value=name;document.getElementById('wl-tag').value=tag||'Operations OS';applyWL();}} onboardingStep=Math.max(1,Math.min(3,onboardingStep+delta)); if(onboardingStep===3) localStorage.setItem('corp-nexus-onboarded','1'); renderOnboardingStep(); }
+function resetDemoData(){ localStorage.removeItem('corp-nexus-state'); localStorage.removeItem('corp-nexus-onboarded'); location.reload(); }
+function automationNotifications(){ return getAutomationItems(SaaS_State.get().role).map(x=>({title:x.title,detail:x.detail})); }
+function openNotifications(){ dismissWelcomeOverlays(); const list=document.getElementById('notification-list'), items=automationNotifications(); list.innerHTML=items.length?items.map(x=>`<div class="notification-item"><i class="notification-dot"></i><div><strong>${x.title}</strong><span>${x.detail}</span></div></div>`).join(''):'<div class="empty-state"><strong>You are all caught up</strong><span>No automated notifications for this role.</span></div>'; document.getElementById('notification-panel').classList.add('open'); }
+function updateNotificationCount(){ const n=automationNotifications().length; const el=document.getElementById('notify-count'); if(el){el.textContent=n;el.style.display=n?'grid':'none';} }
+const COMMANDS=[['Go to dashboard',()=>showPage('dashboard'),'Navigation'],['Add project',()=>openModal('project'),'Create'],['Add task',()=>openModal('task'),'Create'],['Open analytics',()=>showPage('analytics'),'Navigation'],['Open template builder',()=>showPage('wl'),'Customize'],['Toggle presentation mode',()=>togglePresentationMode(),'Demo'],['Open component library',()=>openComponentLibrary(),'Design'],['Switch to employee view',()=>setRole('employee'),'Role'],['Switch to admin view',()=>setRole('admin'),'Role']];
+function openCommandPalette(){dismissWelcomeOverlays();document.getElementById('command-panel').classList.add('open');document.getElementById('command-search').value='';renderCommands('');setTimeout(()=>document.getElementById('command-search').focus(),20);}
+function renderCommands(q){const query=(q||'').toLowerCase();document.getElementById('command-list').innerHTML=COMMANDS.filter(c=>c[0].toLowerCase().includes(query)).map((c,i)=>`<div class="command-item" onclick="runCommand(${i})"><b>${c[0]}</b><span>${c[2]}</span></div>`).join('')||'<div class="empty-state">No commands found.</div>';}
+function runCommand(i){closeOverlay('command-panel');COMMANDS[i]?.[1]();}
+function closeOverlay(id){document.getElementById(id)?.classList.remove('open');}
+function closeOverlayOutside(e,id){if(e.target.id===id)closeOverlay(id);}
+function hydrateTemplateIdentity(){ const c=SaaS_State.get().templateConfig||{}; const name=c.name||'Corp·Nexus', tag=c.tag||'Diamond Edition'; const logo=document.getElementById('brand-logo'), badge=document.getElementById('brand-tag'); if(logo) logo.innerHTML=name.replace('·','<span>·</span>'); if(badge) badge.textContent=tag; document.title=name; const nameInput=document.getElementById('wl-name'), tagInput=document.getElementById('wl-tag'); if(nameInput) nameInput.value=name; if(tagInput) tagInput.value=tag; }
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════ */
+hydrateTemplateIdentity();
+loadBuilderConfig();
+loadPresentationMode();
+loadAccessibility();
+renderSavedViews();
+renderAutomationRules();
+renderPermissionMatrix();
+updateNotificationCount();
+SaaS_State.log('SYSTEM', 'Corp-Nexus Diamond initialized');
+recalcKPIs();
+setTimeout(renderDashCharts, 120);
+const initialParams = new URLSearchParams(location.search);
+const initialRole = initialParams.get('role');
+const initialPage = initialParams.get('page');
+setRole(initialRole && ROLE_ACCESS[initialRole] ? initialRole : 'admin');
+if (initialPage && (SaaS_State.get().role === 'observer' ? initialPage === 'observer' : (ROLE_ACCESS[SaaS_State.get().role] || []).includes(initialPage))) showPage(initialPage);
+if (!localStorage.getItem('corp-nexus-auth')) setTimeout(()=>openAuth('signin'), 450);
+else if (!localStorage.getItem('corp-nexus-onboarded')) setTimeout(()=>openOnboarding(), 450);
+
+/* ── Mobile sidebar toggle ── */
+document.getElementById('mobile-toggle').addEventListener('click', function() {
+  const sb = document.getElementById('sidebar'), ov = document.getElementById('sidebar-overlay');
+  sb.classList.toggle('active'); ov.classList.toggle('active');
+  this.setAttribute('aria-expanded', sb.classList.contains('active'));
+});
+document.querySelectorAll('#sidebar .nav-item').forEach(btn => btn.addEventListener('click', () => {
+  document.getElementById('sidebar').classList.remove('active');
+  document.getElementById('sidebar-overlay').classList.remove('active');
+}));
+
+/* ── Keyboard shortcuts ── */
+document.addEventListener('keydown', e => {
+  if ((e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey))) { e.preventDefault(); openCommandPalette(); }
+  if (e.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) { e.preventDefault(); document.getElementById('global-search')?.focus(); }
+  if (e.key === 'Escape') { if(document.body.classList.contains('presentation-mode')) togglePresentationMode(); dismissWelcomeOverlays(); closeComponentLibrary(); closeOverlay('command-panel'); closeOverlay('notification-panel'); closeSearch(); closeModal(); document.getElementById('sidebar')?.classList.remove('active'); document.getElementById('sidebar-overlay')?.classList.remove('active'); }
+});
+</script>
+</body>
+</html>
